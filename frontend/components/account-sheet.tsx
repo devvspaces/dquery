@@ -77,7 +77,7 @@ export function AccountSheet({ open, onOpenChange, onBuyCredits }: AccountSheetP
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "domainq-bookmarks.csv";
+    a.download = "dquery-bookmarks.csv";
     a.click();
     URL.revokeObjectURL(url);
   };

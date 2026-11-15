@@ -1,4 +1,6 @@
-# dquery
+<img src="branding/dquery-logo-512.png" width="72" alt="DQuery logo" />
+
+# DQuery
 
 Domain name generator and **registrar price aggregator**: generate names with an LLM, check availability once at the registry, and compare first-year, renewal and 3-year prices across registrars (Namecheap, Spaceship, Cloudflare, GoDaddy, Porkbun, …).
 

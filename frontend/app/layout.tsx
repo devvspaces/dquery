@@ -13,7 +13,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DomainQ - Domain Name Generator & Checker",
+  title: "DQuery - Domain Name Generator & Price Checker",
+  applicationName: "DQuery",
   description:
     "Generate creative domain names for your business and check availability across multiple registrars. Find the perfect domain at the best price.",
 };

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>DQuery</title>
+  <defs>
+    <linearGradient id="dq-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#19c2a0"/>
+      <stop offset="1" stop-color="#0b7a66"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#dq-bg)"/>
+  <circle cx="234" cy="234" r="118" fill="none" stroke="#fff" stroke-width="54"/>
+  <path d="M318 318 L398 398" stroke="#fff" stroke-width="58" stroke-linecap="round"/>
+  <circle cx="234" cy="234" r="36" fill="#fff"/>
+</svg>

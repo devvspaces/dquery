@@ -1,4 +1,4 @@
-# DomainQ Backend API
+# DQuery Backend API
 
 A powerful NestJS backend for domain name generation, availability checking, and management across multiple registrars.
 

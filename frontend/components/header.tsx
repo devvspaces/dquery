@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
+import { LogoMark } from "@/components/logo";
 
 interface HeaderProps {
   activeTab: "generate" | "check";
@@ -35,24 +36,9 @@ export function Header({
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-primary-foreground"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-            </div>
+            <LogoMark />
             <span className="text-base font-semibold tracking-tight text-foreground">
-              DomainQ
+              DQuery
             </span>
           </div>
 
