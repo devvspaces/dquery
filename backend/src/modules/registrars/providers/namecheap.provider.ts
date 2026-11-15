@@ -75,8 +75,10 @@ export class NamecheapProvider
   private async call(
     command: string,
     params: Record<string, string> = {},
+    timeoutMs?: number,
   ): Promise<any> {
     const response = await this.client.get('', {
+      ...(timeoutMs ? { timeout: timeoutMs } : {}),
       params: {
         ApiUser: this.apiUser,
         ApiKey: this.apiKey,
@@ -170,7 +172,12 @@ export class NamecheapProvider
 
   async fetchTldPrices(): Promise<TldPriceQuote[]> {
     const commandResponse = await this.limiter.schedule(() =>
-      this.call('namecheap.users.getPricing', { ProductType: 'DOMAIN' }),
+      // The full price list is several MB of XML; give it far longer than a check.
+      this.call(
+        'namecheap.users.getPricing',
+        { ProductType: 'DOMAIN' },
+        120_000,
+      ),
     );
     return NamecheapProvider.parsePricing(commandResponse);
   }
