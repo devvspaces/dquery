@@ -1,18 +1,9 @@
-import { ConfigService } from '@nestjs/config';
-import creditsConfig from '../../../config/credits.config';
 import { CreditPricingService } from '../credit-pricing.service';
 import { CreditsService } from '../credits.service';
-
-function configWith(env: Record<string, string> = {}) {
-  const saved = { ...process.env };
-  Object.assign(process.env, env);
-  const values = creditsConfig();
-  process.env = saved;
-  return new ConfigService({ credits: values });
-}
+import { LAUNCH_PRICING, settingsStub } from '../../settings/testing';
 
 describe('CreditPricingService', () => {
-  const pricing = new CreditPricingService(configWith());
+  const pricing = new CreditPricingService(settingsStub(LAUNCH_PRICING));
 
   it('charges per name × TLD, never per registrar', () => {
     expect(pricing.quoteGeneration('ai', 15, 3)).toEqual({
@@ -36,11 +27,12 @@ describe('CreditPricingService', () => {
     });
   });
 
-  it('reads overrides from the environment', () => {
+  it('follows the current settings', () => {
     const custom = new CreditPricingService(
-      configWith({
-        CREDIT_PER_AI_GENERATION: '2',
-        CREDIT_PER_DOMAIN_CHECK: '0.1',
+      settingsStub({
+        ...LAUNCH_PRICING,
+        'credits.perAiGeneration': 2,
+        'credits.perDomainCheck': 0.1,
       }),
     );
     expect(custom.quoteGeneration('ai', 10, 1).total).toBe(3);
@@ -48,10 +40,12 @@ describe('CreditPricingService', () => {
 });
 
 describe('CreditsService.signupGrantAmount', () => {
+  const settings = settingsStub(LAUNCH_PRICING);
   const service = new CreditsService(
     {} as never,
-    configWith(),
-    new CreditPricingService(configWith()),
+    {} as never,
+    new CreditPricingService(settings),
+    settings,
   );
 
   it('gives the early amount to the first 500 users, then the default', () => {

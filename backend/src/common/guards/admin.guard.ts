@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { isAdminEmail } from '../admin-access';
 
 /**
  * Allows only users whose email is listed in ADMIN_EMAILS (comma-separated).
@@ -12,18 +12,11 @@ import { ConfigService } from '@nestjs/config';
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
-  constructor(private readonly config: ConfigService) {}
-
   canActivate(context: ExecutionContext): boolean {
-    const admins = (this.config.get<string>('ADMIN_EMAILS') ?? '')
-      .split(',')
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
     const { user } = context
       .switchToHttp()
       .getRequest<{ user?: { email?: string } }>();
-    const email = user?.email?.toLowerCase();
-    if (!email || !admins.includes(email)) {
+    if (!isAdminEmail(user?.email)) {
       throw new ForbiddenException('Admin only');
     }
     return true;

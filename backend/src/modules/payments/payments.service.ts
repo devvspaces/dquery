@@ -13,6 +13,7 @@ import { purchases, type Purchase } from '../../database/schema';
 import { CreditsService } from '../credits/credits.service';
 import { CREDIT_PACKS, findPack, packPrice } from '../../config/packs';
 import { PaystackProvider } from './providers/paystack.provider';
+import { SettingsService } from '../settings/settings.service';
 
 export interface PackView {
   id: string;
@@ -40,18 +41,15 @@ export class PaymentsService {
     private readonly config: ConfigService,
     private readonly credits: CreditsService,
     private readonly paystack: PaystackProvider,
+    private readonly settings: SettingsService,
   ) {}
 
   private get currency(): string {
-    return (
-      this.config.get<string>('PAYSTACK_CURRENCY') ?? 'USD'
-    ).toUpperCase();
+    return this.settings.get<string>('payments.currency');
   }
 
   private get ngnPerUsd(): number {
-    return parseFloat(
-      this.config.get<string>('PAYSTACK_NGN_PER_USD') ?? '1600',
-    );
+    return this.settings.get<number>('payments.ngnPerUsd');
   }
 
   listPacks(): PackView[] {

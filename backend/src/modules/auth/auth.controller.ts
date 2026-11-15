@@ -2,6 +2,7 @@ import { Controller, Get, Post, UseGuards, Req, Res } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
+import { isAdminEmail } from '../../common/admin-access';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { OAuthProfile } from './dto/auth.dto';
@@ -55,7 +56,7 @@ export class AuthController {
 
   @Get('me')
   getProfile(@CurrentUser() user: User) {
-    return user;
+    return { ...user, isAdmin: isAdminEmail(user.email) };
   }
 
   @Public()

@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { isAdminEmail } from '../../../common/admin-access';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -27,6 +32,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.authService.validateUserById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+    // Suspended accounts are locked out of every route (admins can't be suspended).
+    if (user.suspendedAt && !isAdminEmail(user.email)) {
+      throw new ForbiddenException('Account suspended');
     }
     return user;
   }

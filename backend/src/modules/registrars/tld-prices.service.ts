@@ -1,9 +1,10 @@
 import { FxRatesService } from './fx-rates.service';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { inArray, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service';
 import { RedisService } from '../../redis/redis.service';
 import { tldPrices } from '../../database/schema/domains.schema';
+import { priceSyncRuns } from '../../database/schema/admin.schema';
 import {
   REGISTRAR_PROVIDERS,
   isPriceCatalogSource,
@@ -93,16 +94,19 @@ export class TldPricesService {
 
   /** Sync every price-catalog provider. One provider failing doesn't stop the others. */
   async syncAllPrices(only?: string[]): Promise<SyncReport[]> {
-    // Fresh exchange rates first, so newly synced non-USD prices convert correctly.
-    await this.fx.sync();
-
     const sources = this.providers
       .filter(isPriceCatalogSource)
       .filter((p) => p.isConfigured())
       .filter((p) => !only?.length || only.includes(p.id));
 
+    if (sources.length === 0) return [];
+    // Fresh exchange rates first, so newly synced non-USD prices convert correctly.
+    await this.fx.sync();
+
     const reports: SyncReport[] = [];
     for (const source of sources) {
+      const startedAt = new Date();
+      let report: SyncReport;
       try {
         const quotes = await source.fetchTldPrices();
         if (quotes.length === 0) throw new Error('provider returned no prices');
@@ -110,19 +114,16 @@ export class TldPricesService {
         this.logger.log(
           `Synced ${count} TLD prices from ${source.getProviderName()}`,
         );
-        reports.push({ registrar: source.id, ok: true, count });
+        report = { registrar: source.id, ok: true, count };
       } catch (error) {
         const message = errorMessage(error);
         this.logger.error(
           `Price sync failed for ${source.getProviderName()}: ${message}`,
         );
-        reports.push({
-          registrar: source.id,
-          ok: false,
-          count: 0,
-          error: message,
-        });
+        report = { registrar: source.id, ok: false, count: 0, error: message };
       }
+      reports.push(report);
+      await this.recordRun(report, startedAt);
     }
 
     await this.bumpCacheVersion();
@@ -300,6 +301,42 @@ export class TldPricesService {
       );
     }
     return result;
+  }
+
+  /** Keep a history of sync results for the admin panel. Never fails the sync. */
+  private async recordRun(report: SyncReport, startedAt: Date): Promise<void> {
+    try {
+      await this.databaseService
+        .getDb()
+        .insert(priceSyncRuns)
+        .values({
+          registrar: report.registrar,
+          ok: report.ok,
+          count: report.count,
+          error: report.error?.slice(0, 2000) ?? null,
+          startedAt,
+          durationMs: Date.now() - startedAt.getTime(),
+        });
+    } catch (err) {
+      this.logger.warn(`Could not record sync run: ${errorMessage(err)}`);
+    }
+  }
+
+  /** Remove a manual price; the next sync restores the registrar's catalog price. */
+  async deleteManualPrice(registrar: string, tld: string): Promise<boolean> {
+    const deleted = await this.databaseService
+      .getDb()
+      .delete(tldPrices)
+      .where(
+        and(
+          eq(tldPrices.registrar, registrar.toLowerCase()),
+          eq(tldPrices.tld, normalizeTld(tld)),
+          eq(tldPrices.source, 'manual'),
+        ),
+      )
+      .returning({ tld: tldPrices.tld });
+    await this.bumpCacheVersion();
+    return deleted.length > 0;
   }
 
   private isStale(updatedAt: string): boolean {

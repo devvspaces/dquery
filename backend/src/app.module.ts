@@ -12,6 +12,8 @@ import { RegistrarsModule } from './modules/registrars/registrars.module';
 import { DomainsModule } from './modules/domains/domains.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { NamegenModule } from './modules/namegen/namegen.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { QueuesModule } from './queues/queues.module';
 import { BullBoardConfigModule } from './queues/bullboard.module';
@@ -21,7 +23,6 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import redisConfig from './config/redis.config';
-import creditsConfig from './config/credits.config';
 import llmConfig from './config/llm.config';
 import queueConfig from './queues/config/queue.config';
 
@@ -29,18 +30,12 @@ import queueConfig from './queues/config/queue.config';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [
-        appConfig,
-        databaseConfig,
-        redisConfig,
-        creditsConfig,
-        llmConfig,
-        queueConfig,
-      ],
+      load: [appConfig, databaseConfig, redisConfig, llmConfig, queueConfig],
       envFilePath: '.env',
     }),
     DatabaseModule,
     RedisModule,
+    SettingsModule,
     AuthModule,
     CreditsModule,
     LLMModule,
@@ -49,6 +44,7 @@ import queueConfig from './queues/config/queue.config';
     DomainsModule,
     PaymentsModule,
     NamegenModule,
+    AdminModule,
     // Limits are set per route with @Throttle; this is only the fallback.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 600 }]),
     BullBoardConfigModule,

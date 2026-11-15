@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { SettingsService } from '../settings/settings.service';
 
 export type GenerationEngine = 'ai' | 'words';
 
@@ -26,16 +26,13 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  */
 @Injectable()
 export class CreditPricingService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly settings: SettingsService) {}
 
   pricing(): CreditPricing {
     return {
-      perAiGeneration: this.config.get<number>('credits.perAiGeneration', 1),
-      perWordGeneration: this.config.get<number>(
-        'credits.perWordGeneration',
-        0.25,
-      ),
-      perDomainCheck: this.config.get<number>('credits.perDomainCheck', 0.05),
+      perAiGeneration: this.settings.get<number>('credits.perAiGeneration'),
+      perWordGeneration: this.settings.get<number>('credits.perWordGeneration'),
+      perDomainCheck: this.settings.get<number>('credits.perDomainCheck'),
     };
   }
 

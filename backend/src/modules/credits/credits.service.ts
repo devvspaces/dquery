@@ -12,6 +12,7 @@ import {
   CreditEstimateRequestDto,
 } from './dto';
 import { CreditPricingService } from './credit-pricing.service';
+import { SettingsService } from '../settings/settings.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class CreditsService {
     private databaseService: DatabaseService,
     private configService: ConfigService,
     private pricingService: CreditPricingService,
+    private settings: SettingsService,
   ) {}
 
   /**
@@ -70,6 +72,7 @@ export class CreditsService {
     amount: number,
     description: string,
     metadata?: any,
+    idempotencyKey?: string,
   ): Promise<number> {
     const db = this.databaseService.getDb();
 
@@ -116,6 +119,7 @@ export class CreditsService {
           balanceBefore: creditRecord.balance,
           balanceAfter: newBalance.toFixed(2),
           metadata: metadata ? JSON.stringify(metadata) : null,
+          idempotencyKey: idempotencyKey ?? null,
         });
 
         this.logger.log(
@@ -286,6 +290,35 @@ export class CreditsService {
   }
 
   /**
+   * Admin credit adjustment: positive grants (bonus), negative removes
+   * (deduction). Keyed by `requestId` so a retried request applies once.
+   */
+  async adjust(
+    userId: string,
+    delta: number,
+    reason: string,
+    adminEmail: string,
+    requestId: string,
+  ): Promise<number> {
+    const metadata = { source: 'admin', admin: adminEmail, reason };
+    const key = `admin:${requestId}`;
+    const description = `Admin adjustment: ${reason}`;
+    if (delta > 0) {
+      return this.addCredits(userId, delta, 'bonus', description, metadata, {
+        idempotencyKey: key,
+      });
+    }
+    const db = this.databaseService.getDb();
+    const [done] = await db
+      .select({ id: creditTransactions.id })
+      .from(creditTransactions)
+      .where(eq(creditTransactions.idempotencyKey, key))
+      .limit(1);
+    if (done) return (await this.getBalance(userId)).balance;
+    return this.deductCredits(userId, -delta, description, metadata, key);
+  }
+
+  /**
    * Estimate the credit cost of an operation, using the same prices that are charged.
    */
   estimateCost(dto: CreditEstimateRequestDto): CreditEstimateDto {
@@ -304,9 +337,9 @@ export class CreditsService {
    * How many free credits a new user gets, given how many users existed before them.
    */
   signupGrantAmount(existingUsers: number): number {
-    const early = this.configService.get<number>('credits.freeEarly', 10);
-    const limit = this.configService.get<number>('credits.freeEarlyLimit', 500);
-    const fallback = this.configService.get<number>('credits.freeDefault', 5);
+    const early = this.settings.get<number>('credits.freeEarly');
+    const limit = this.settings.get<number>('credits.freeEarlyLimit');
+    const fallback = this.settings.get<number>('credits.freeDefault');
     return existingUsers < limit ? early : fallback;
   }
 
@@ -319,15 +352,12 @@ export class CreditsService {
   }> {
     const db = this.databaseService.getDb();
     const [{ value }] = await db.select({ value: count() }).from(users);
-    const earlyLimit = this.configService.get<number>(
-      'credits.freeEarlyLimit',
-      500,
-    );
+    const earlyLimit = this.settings.get<number>('credits.freeEarlyLimit');
     return {
-      earlyAmount: this.configService.get<number>('credits.freeEarly', 10),
+      earlyAmount: this.settings.get<number>('credits.freeEarly'),
       earlyLimit,
       earlyRemaining: Math.max(0, earlyLimit - Number(value)),
-      defaultAmount: this.configService.get<number>('credits.freeDefault', 5),
+      defaultAmount: this.settings.get<number>('credits.freeDefault'),
     };
   }
 }

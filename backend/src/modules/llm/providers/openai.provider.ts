@@ -17,7 +17,10 @@ export class OpenAIProvider implements ILLMProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    model?: string,
+  ) {
     const apiKey = this.configService.get<string>('llm.openai.apiKey');
     if (!apiKey) {
       this.logger.warn('OpenAI API key not configured');
@@ -28,7 +31,9 @@ export class OpenAIProvider implements ILLMProvider {
     });
 
     this.model =
-      this.configService.get<string>('llm.openai.model') || 'gpt-4-turbo';
+      model ||
+      this.configService.get<string>('llm.openai.model') ||
+      'gpt-4-turbo';
   }
 
   async generateDomains(

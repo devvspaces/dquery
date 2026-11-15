@@ -10,37 +10,41 @@ import {
 import { OpenAIProvider } from './providers/openai.provider';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { GeminiProvider } from './providers/gemini.provider';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class LLMService {
   private readonly logger = new Logger(LLMService.name);
-  private provider: ILLMProvider;
+  /** Providers built so far, keyed by "provider:model". */
+  private readonly providers = new Map<string, ILLMProvider>();
 
   constructor(
     private configService: ConfigService,
     private databaseService: DatabaseService,
-  ) {
-    const providerName =
-      this.configService.get<string>('llm.provider') || 'openai';
+    private settings: SettingsService,
+  ) {}
 
-    this.logger.log(`Initializing LLM provider: ${providerName}`);
-
-    switch (providerName.toLowerCase()) {
-      case 'openai':
-        this.provider = new OpenAIProvider(this.configService);
-        break;
-      case 'anthropic':
-        this.provider = new AnthropicProvider(this.configService);
-        break;
-      case 'gemini':
-        this.provider = new GeminiProvider(this.configService);
-        break;
-      default:
-        this.logger.warn(
-          `Unknown provider "${providerName}", defaulting to OpenAI`,
-        );
-        this.provider = new OpenAIProvider(this.configService);
+  /**
+   * The provider and model currently selected in settings (admin-editable,
+   * default from .env). Built on first use and reused, so switching provider
+   * or model in the admin panel takes effect without a restart.
+   */
+  private get provider(): ILLMProvider {
+    const name = this.settings.get<string>('llm.provider');
+    const model = this.settings.get<string>(`llm.model.${name}`);
+    const key = `${name}:${model}`;
+    let provider = this.providers.get(key);
+    if (!provider) {
+      this.logger.log(`Using LLM provider ${name} (${model})`);
+      provider =
+        name === 'anthropic'
+          ? new AnthropicProvider(this.configService, model)
+          : name === 'gemini'
+            ? new GeminiProvider(this.configService, model)
+            : new OpenAIProvider(this.configService, model);
+      this.providers.set(key, provider);
     }
+    return provider;
   }
 
   /**

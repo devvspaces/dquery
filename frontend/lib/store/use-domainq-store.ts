@@ -9,6 +9,8 @@ export interface UserProfile {
   avatar?: string;
   provider: string;
   credits?: number;
+  /** True for ADMIN_EMAILS accounts (the server enforces this on /api/admin). */
+  isAdmin?: boolean;
 }
 
 export interface BookmarkedDomain {
@@ -178,6 +180,7 @@ export const useDomainQStore = create<DomainQState>((set, get) => ({
           avatar: userProfile.avatar || "",
           provider: userProfile.provider,
           credits,
+          isAdmin: userProfile.isAdmin === true,
         },
       });
     } catch (error) {

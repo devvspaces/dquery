@@ -46,11 +46,13 @@ export abstract class BaseRegistrarProvider implements IRegistrarProvider {
    */
   protected readonly purchaseUrlTemplate?: string;
 
-  purchaseUrl(fqdn: string): string | undefined {
+  purchaseUrl(fqdn: string, override?: string): string | undefined {
     const template =
+      override ||
       process.env[
         `REGISTRAR_LINK_${this.id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
-      ] || this.purchaseUrlTemplate;
+      ] ||
+      this.purchaseUrlTemplate;
     return template?.replace(/\{domain\}/g, encodeURIComponent(fqdn));
   }
 

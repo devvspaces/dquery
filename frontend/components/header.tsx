@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCredits } from "@/lib/pricing";
+import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -101,6 +102,14 @@ export function Header({
         <div className="flex items-center gap-2">
           {isAuthenticated && user ? (
             <>
+              {user.isAdmin && (
+                <Link
+                  href="/admin"
+                  className="hidden sm:inline-flex items-center rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Admin
+                </Link>
+              )}
               {/* Credits pill */}
               <button
                 onClick={onBuyCredits}

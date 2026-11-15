@@ -17,7 +17,10 @@ export class GeminiProvider implements ILLMProvider {
   private client: GoogleGenAI;
   private model: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    model?: string,
+  ) {
     const apiKey = this.configService.get<string>('llm.gemini.apiKey');
     if (!apiKey) {
       this.logger.warn('Gemini API key not configured');
@@ -28,7 +31,9 @@ export class GeminiProvider implements ILLMProvider {
     });
 
     this.model =
-      this.configService.get<string>('llm.gemini.model') || 'gemini-2.5-flash';
+      model ||
+      this.configService.get<string>('llm.gemini.model') ||
+      'gemini-2.5-flash';
   }
 
   async generateDomains(

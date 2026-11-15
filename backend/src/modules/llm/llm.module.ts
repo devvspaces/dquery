@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { LLMService } from './llm.service';
-import { OpenAIProvider } from './providers/openai.provider';
-import { AnthropicProvider } from './providers/anthropic.provider';
-import { GeminiProvider } from './providers/gemini.provider';
 
+/** Providers are built by LLMService from the current settings (provider + model). */
 @Module({
-  providers: [LLMService, OpenAIProvider, AnthropicProvider, GeminiProvider],
+  providers: [LLMService],
   exports: [LLMService],
 })
 export class LLMModule {}

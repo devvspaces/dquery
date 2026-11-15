@@ -6,6 +6,7 @@ import type {
 } from '../interfaces/registrar-provider.interface';
 import { BaseRegistrarProvider } from './base.provider';
 import { roundMoney } from '../utils/domain.util';
+import { SettingsService } from '../../settings/settings.service';
 
 /** OVH prices are integers in 1e-8 of the currency unit (849000000 = 8.49). */
 const OVH_PRICE_UNIT = 1e8;
@@ -26,7 +27,7 @@ export class OvhProvider
   protected readonly purchaseUrlTemplate =
     'https://www.ovhcloud.com/en-ie/domains/?domain={domain}';
 
-  constructor() {
+  constructor(private readonly settings: SettingsService) {
     super('OvhProvider', { requestsPerMinute: 5, maxBulkSize: 1 }, 1);
   }
 
@@ -35,7 +36,7 @@ export class OvhProvider
   }
 
   async fetchTldPrices(): Promise<TldPriceQuote[]> {
-    const subsidiary = process.env.OVH_SUBSIDIARY || 'IE';
+    const subsidiary = this.settings.get<string>('registrars.ovhSubsidiary');
     const response = await this.limiter.schedule(() =>
       axios.get('https://eu.api.ovh.com/1.0/order/catalog/public/domain', {
         params: { ovhSubsidiary: subsidiary },

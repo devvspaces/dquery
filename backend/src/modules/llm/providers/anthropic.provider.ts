@@ -17,7 +17,10 @@ export class AnthropicProvider implements ILLMProvider {
   private client: Anthropic;
   private model: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    model?: string,
+  ) {
     const apiKey = this.configService.get<string>('llm.anthropic.apiKey');
     if (!apiKey) {
       this.logger.warn('Anthropic API key not configured');
@@ -28,6 +31,7 @@ export class AnthropicProvider implements ILLMProvider {
     });
 
     this.model =
+      model ||
       this.configService.get<string>('llm.anthropic.model') ||
       'claude-opus-5-5';
   }

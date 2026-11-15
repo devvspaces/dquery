@@ -114,7 +114,7 @@ export interface IRegistrarProvider {
   /** Static list of TLDs the provider can check live. Empty means "unknown, try anything". */
   getSupportedTlds(): Promise<string[]>;
   /** Link to buy `fqdn` at this registrar, if we know one. */
-  purchaseUrl?(fqdn: string): string | undefined;
+  purchaseUrl?(fqdn: string, override?: string): string | undefined;
 }
 
 export interface AvailabilityChecker extends IRegistrarProvider {

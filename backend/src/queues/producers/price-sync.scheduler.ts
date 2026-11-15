@@ -1,13 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { ConfigService } from '@nestjs/config';
+import { SettingsService } from '../../modules/settings/settings.service';
 import { Queue } from 'bullmq';
 import { QUEUE_NAMES } from '../constants/queue-names';
 
 /**
  * Registers the repeatable price-sync job (idempotent across restarts and
  * multiple instances, unlike the old sync-on-boot).
- * Schedule: PRICE_SYNC_CRON, default 03:15 UTC daily.
+ * Schedule: the prices.syncCron setting (default PRICE_SYNC_CRON, 03:15 UTC).
  */
 @Injectable()
 export class PriceSyncScheduler implements OnModuleInit {
@@ -15,14 +15,21 @@ export class PriceSyncScheduler implements OnModuleInit {
 
   constructor(
     @InjectQueue(QUEUE_NAMES.PRICE_SYNC) private readonly queue: Queue,
-    private readonly configService: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
     // Tests must not register a cron in a (possibly shared) Redis.
     if (process.env.NODE_ENV === 'test') return;
-    const pattern =
-      this.configService.get<string>('PRICE_SYNC_CRON') || '15 3 * * *';
+    await this.reschedule(this.settings.get<string>('prices.syncCron'));
+    // Changing the schedule in the admin panel re-registers it immediately.
+    this.settings.onChange('prices.syncCron', (pattern) =>
+      this.reschedule(pattern as string),
+    );
+  }
+
+  /** (Re)register the daily sync with a cron pattern (UTC). Idempotent. */
+  async reschedule(pattern: string): Promise<void> {
     try {
       await this.queue.upsertJobScheduler(
         'daily-tld-price-sync',

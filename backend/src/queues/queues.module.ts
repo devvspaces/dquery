@@ -52,6 +52,12 @@ import { PriceSyncScheduler } from './producers/price-sync.scheduler';
     PriceSyncProcessor,
     PriceSyncScheduler,
   ],
-  exports: [DomainGenerationProducer, DomainCheckingProducer],
+  // BullModule is re-exported so the admin panel can inspect the queues.
+  exports: [
+    DomainGenerationProducer,
+    DomainCheckingProducer,
+    PriceSyncScheduler,
+    BullModule,
+  ],
 })
 export class QueuesModule {}

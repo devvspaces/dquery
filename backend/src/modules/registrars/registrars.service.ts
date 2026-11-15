@@ -6,6 +6,7 @@ import { domainCache, registrarApiLogs } from '../../database/schema';
 import {
   REGISTRAR_PROVIDERS,
   isAvailabilityChecker,
+  isPriceCatalogSource,
 } from './interfaces/registrar-provider.interface';
 import type {
   AvailabilityChecker,
@@ -14,6 +15,7 @@ import type {
   IRegistrarProvider,
 } from './interfaces/registrar-provider.interface';
 import { TldPricesService } from './tld-prices.service';
+import { SettingsService } from '../settings/settings.service';
 import type { CatalogPrice } from './tld-prices.service';
 import { buildOffers, pickBestOffer, resolveStatus } from './aggregation';
 import {
@@ -61,6 +63,7 @@ export class RegistrarsService {
     private readonly redisService: RedisService,
     private readonly tldPricesService: TldPricesService,
     @Inject(REGISTRAR_PROVIDERS) providers: IRegistrarProvider[],
+    private readonly settings: SettingsService,
   ) {
     this.providersById = new Map(providers.map((p) => [p.id, p]));
   }
@@ -173,6 +176,8 @@ export class RegistrarsService {
     await Promise.all(
       misses.map(async (d) => {
         const fqdn = `${d.domain}.${d.tld}`;
+        const links =
+          this.settings.get<Record<string, string>>('registrars.links');
         const liveForDomain =
           live.get(fqdn) ?? new Map<string, AvailabilityResult>();
         let offers = buildOffers({
@@ -183,7 +188,9 @@ export class RegistrarsService {
           enabled,
           displayName: (id) => this.displayName(id),
           purchaseUrl: (id) =>
-            this.providersById.get(id)?.purchaseUrl?.(`${d.domain}.${d.tld}`),
+            this.providersById
+              .get(id)
+              ?.purchaseUrl?.(`${d.domain}.${d.tld}`, links[id]),
           checkedAt,
         });
 
@@ -272,28 +279,41 @@ export class RegistrarsService {
     );
   }
 
-  /** ENABLED_REGISTRARS (comma-separated ids); empty means all. */
+  /** Every registered provider with its status, for the admin panel. */
+  describeProviders(): Array<{
+    id: string;
+    name: string;
+    configured: boolean;
+    enabled: boolean;
+    checksAvailability: boolean;
+    publishesCatalog: boolean;
+    checkOrder: number | null;
+  }> {
+    const enabled = this.getEnabledProviderIds();
+    const order = this.settings.get<string[]>('registrars.checkerOrder');
+    return [...this.providersById.values()].map((p) => ({
+      id: p.id,
+      name: p.getProviderName(),
+      configured: p.isConfigured(),
+      enabled: enabled.has(p.id),
+      checksAvailability: isAvailabilityChecker(p),
+      publishesCatalog: isPriceCatalogSource(p),
+      checkOrder: order.includes(p.id) ? order.indexOf(p.id) + 1 : null,
+    }));
+  }
+
+  /** Enabled registrars (admin setting, default ENABLED_REGISTRARS); empty means all. */
   private getEnabledProviderIds(): Set<string> {
-    const configured = (
-      this.configService.get<string>('ENABLED_REGISTRARS') ?? ''
-    )
-      .split(',')
-      .map((p) => p.trim().toLowerCase())
-      .filter(Boolean);
+    const configured = this.settings.get<string[]>('registrars.enabled');
     return new Set(
       configured.length > 0 ? configured : [...this.providersById.keys()],
     );
   }
 
-  /** Enabled, configured checkers in AVAILABILITY_CHECKER_ORDER. */
+  /** Enabled, configured checkers in the configured check order. */
   private async getOrderedCheckers(): Promise<AvailabilityChecker[]> {
     const enabled = this.getEnabledProviderIds();
-    const order = (
-      this.configService.get<string>('AVAILABILITY_CHECKER_ORDER') ?? ''
-    )
-      .split(',')
-      .map((p) => p.trim().toLowerCase())
-      .filter(Boolean);
+    const order = this.settings.get<string[]>('registrars.checkerOrder');
     const ids = [
       ...new Set([
         ...(order.length ? order : DEFAULT_CHECKER_ORDER),

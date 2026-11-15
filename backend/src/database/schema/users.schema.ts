@@ -7,6 +7,8 @@ export const users = pgTable('users', {
   avatar: varchar('avatar', { length: 500 }),
   provider: varchar('provider', { length: 50 }).notNull(), // 'google', 'github', 'facebook', 'twitter'
   providerId: varchar('provider_id', { length: 255 }).notNull(),
+  /** Set by an admin; suspended users are rejected on every request. */
+  suspendedAt: timestamp('suspended_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
