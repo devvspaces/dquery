@@ -1,0 +1,399 @@
+{
+ "catalogId": 9903,
+ "locale": {
+  "currencyCode": "EUR",
+  "subsidiary": "IE",
+  "taxRate": 23
+ },
+ "plans": [
+  {
+   "planCode": "io",
+   "invoiceName": ".io",
+   "addonFamilies": [],
+   "product": "io-product",
+   "pricingType": "rental",
+   "consumptionConfiguration": null,
+   "pricings": [
+    {
+     "phase": 0,
+     "capacities": [
+      "installation",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Creation of a .io domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": 1
+     },
+     "price": 5749000000,
+     "formattedPrice": "\u20ac 57.49",
+     "tax": 1322270000,
+     "mode": "create-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [
+      {
+       "description": "Promo .IO until 31/12/2026",
+       "discount": {
+        "value": 2650000000,
+        "formattedValue": "\u20ac 26.50",
+        "tax": 609500000
+       },
+       "duration": null,
+       "context": "standard",
+       "customFieldValues": [],
+       "endDate": "2026-12-31T23:59:59+01:00",
+       "formattedValue": "\u20ac 30.99",
+       "globalQuantity": null,
+       "isForTestingPurpose": false,
+       "isGlobalQuantityLimited": false,
+       "minimumDuration": 1,
+       "name": "domain_io_create_promo_2026",
+       "quantity": null,
+       "startDate": "2026-01-01T00:00:00+01:00",
+       "tags": null,
+       "total": {
+        "value": 3099000000,
+        "formattedValue": "\u20ac 30.99",
+        "tax": 712770000
+       },
+       "type": "forced_amount",
+       "value": 3099000000
+      }
+     ],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 1,
+     "capacities": [
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Renewal of a .io domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": null
+     },
+     "price": 5979000000,
+     "formattedPrice": "\u20ac 59.79",
+     "tax": 1375170000,
+     "mode": "create-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 0,
+     "capacities": [
+      "dynamic",
+      "installation",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Creation of a .io domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": 1
+     },
+     "price": 99999900000000,
+     "formattedPrice": "\u20ac 999999.00",
+     "tax": 22999977000000,
+     "mode": "create-premium",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 1,
+     "capacities": [
+      "dynamic",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Renewal of a .io domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": null
+     },
+     "price": 99999900000000,
+     "formattedPrice": "\u20ac 999999.00",
+     "tax": 22999977000000,
+     "mode": "create-premium",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 0,
+     "capacities": [
+      "installation",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Transfer request of a .io domain name",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": 1
+     },
+     "price": 4829000000,
+     "formattedPrice": "\u20ac 48.29",
+     "tax": 1110670000,
+     "mode": "transfer-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 1,
+     "capacities": [
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Renewal of a .io domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": null
+     },
+     "price": 5979000000,
+     "formattedPrice": "\u20ac 59.79",
+     "tax": 1375170000,
+     "mode": "transfer-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    }
+   ],
+   "configurations": [],
+   "family": null,
+   "blobs": {}
+  },
+  {
+   "planCode": "com",
+   "invoiceName": ".com",
+   "addonFamilies": [],
+   "product": "com-product",
+   "pricingType": "rental",
+   "consumptionConfiguration": null,
+   "pricings": [
+    {
+     "phase": 0,
+     "capacities": [
+      "installation",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Creation of a .com domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": 1
+     },
+     "price": 849000000,
+     "formattedPrice": "\u20ac 8.49",
+     "tax": 195270000,
+     "mode": "create-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 1,
+     "capacities": [
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Renewal of a .com domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": null
+     },
+     "price": 1429000000,
+     "formattedPrice": "\u20ac 14.29",
+     "tax": 328670000,
+     "mode": "create-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 0,
+     "capacities": [
+      "dynamic",
+      "installation",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Creation of a .com domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": 1
+     },
+     "price": 99999900000000,
+     "formattedPrice": "\u20ac 999999.00",
+     "tax": 22999977000000,
+     "mode": "create-premium",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 1,
+     "capacities": [
+      "dynamic",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Renewal of a .com domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": null
+     },
+     "price": 99999900000000,
+     "formattedPrice": "\u20ac 999999.00",
+     "tax": 22999977000000,
+     "mode": "create-premium",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 0,
+     "capacities": [
+      "installation",
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Transfer request of a .com domain name",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": 1
+     },
+     "price": 849000000,
+     "formattedPrice": "\u20ac 8.49",
+     "tax": 195270000,
+     "mode": "transfer-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    },
+    {
+     "phase": 1,
+     "capacities": [
+      "renew"
+     ],
+     "commitment": 0,
+     "description": "Renewal of a .com domain name - 1 year",
+     "interval": 12,
+     "intervalUnit": "month",
+     "quantity": {
+      "min": 1,
+      "max": 1
+     },
+     "repeat": {
+      "min": 1,
+      "max": null
+     },
+     "price": 1429000000,
+     "formattedPrice": "\u20ac 14.29",
+     "tax": 328670000,
+     "mode": "transfer-default",
+     "strategy": "tiered",
+     "mustBeCompleted": false,
+     "type": "rental",
+     "promotions": [],
+     "engagementConfiguration": null
+    }
+   ],
+   "configurations": [],
+   "family": null,
+   "blobs": {}
+  }
+ ]
+}

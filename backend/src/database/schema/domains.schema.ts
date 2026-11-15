@@ -33,7 +33,7 @@ export const tldPrices = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     registrar: varchar('registrar', { length: 100 }).notNull(),
-    tld: varchar('tld', { length: 20 }).notNull(),
+    tld: varchar('tld', { length: 63 }).notNull(),
     registerPrice: decimal('register_price', {
       precision: 10,
       scale: 2,

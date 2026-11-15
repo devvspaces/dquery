@@ -32,6 +32,8 @@ export class CloudflareProvider
 {
   readonly id = 'cloudflare';
   protected readonly displayName = 'Cloudflare';
+  protected readonly purchaseUrlTemplate =
+    'https://domains.cloudflare.com/?domain={domain}';
   readonly providesLivePricing = true;
 
   private readonly client: AxiosInstance;

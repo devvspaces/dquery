@@ -22,6 +22,8 @@ export class PorkbunProvider
 {
   readonly id = 'porkbun';
   protected readonly displayName = 'Porkbun';
+  protected readonly purchaseUrlTemplate =
+    'https://porkbun.com/checkout/search?q={domain}';
 
   constructor() {
     super('PorkbunProvider', { requestsPerMinute: 10, maxBulkSize: 1 }, 1);

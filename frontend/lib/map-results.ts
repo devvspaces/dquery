@@ -10,6 +10,9 @@ export interface BackendOffer {
   threeYearTotal?: number | null;
   isPromo?: boolean;
   premiumDomain?: boolean;
+  originalCurrency?: string;
+  originalPrice?: number;
+  purchaseUrl?: string;
 }
 
 /** One domain's entry in a checking job result. */
@@ -73,6 +76,9 @@ export function mapBackendToFrontend(
         threeYearTotal: r.threeYearTotal ?? null,
         isPromo: r.isPromo,
         premium: r.premiumDomain,
+        originalCurrency: r.originalCurrency,
+        originalPrice: r.originalPrice,
+        purchaseUrl: r.purchaseUrl,
       })),
     });
   }

@@ -41,6 +41,8 @@ export class NamecheapProvider
 {
   readonly id = 'namecheap';
   protected readonly displayName = 'Namecheap';
+  protected readonly purchaseUrlTemplate =
+    'https://www.namecheap.com/domains/registration/results/?domain={domain}';
   readonly providesLivePricing = false;
 
   private readonly client: AxiosInstance;

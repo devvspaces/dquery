@@ -32,6 +32,8 @@ export class SpaceshipProvider
 {
   readonly id = 'spaceship';
   protected readonly displayName = 'Spaceship';
+  protected readonly purchaseUrlTemplate =
+    'https://www.spaceship.com/domain-search/?query={domain}';
   readonly providesLivePricing = false;
 
   private readonly client: AxiosInstance;

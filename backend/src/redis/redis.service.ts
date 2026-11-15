@@ -19,13 +19,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    this.client.on('connect', () => {
-      console.log('✅ Redis connected successfully');
-    });
-
     this.client.on('error', (err) => {
       console.error('❌ Redis connection error:', err);
     });
+
+    // Wait for the connection so startup fails fast and nothing logs after shutdown.
+    await new Promise<void>((resolve) => {
+      if (this.client.status === 'ready') return resolve();
+      this.client.once('ready', () => resolve());
+    });
+    console.log('✅ Redis connected successfully');
   }
 
   async onModuleDestroy() {

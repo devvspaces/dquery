@@ -6,3 +6,4 @@ export * from './domains.schema';
 export * from './payments.schema';
 export * from './analytics.schema';
 export * from './jobs.schema';
+export * from './fx.schema';

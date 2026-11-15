@@ -40,6 +40,20 @@ export abstract class BaseRegistrarProvider implements IRegistrarProvider {
     return this.displayName;
   }
 
+  /**
+   * Search/checkout URL with `{domain}` as placeholder. Override per
+   * deployment (e.g. with an affiliate link) via REGISTRAR_LINK_<ID>.
+   */
+  protected readonly purchaseUrlTemplate?: string;
+
+  purchaseUrl(fqdn: string): string | undefined {
+    const template =
+      process.env[
+        `REGISTRAR_LINK_${this.id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+      ] || this.purchaseUrlTemplate;
+    return template?.replace(/\{domain\}/g, encodeURIComponent(fqdn));
+  }
+
   getRateLimits(): ProviderRateLimits {
     return this.limits;
   }

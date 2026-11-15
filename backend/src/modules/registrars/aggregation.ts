@@ -37,6 +37,8 @@ export interface BuildOffersInput {
   /** Registrar ids the user has enabled. */
   enabled: Set<string>;
   displayName: (registrarId: string) => string;
+  /** Where to buy at a registrar; only attached to available offers. */
+  purchaseUrl?: (registrarId: string) => string | undefined;
   checkedAt?: Date;
 }
 
@@ -52,7 +54,8 @@ export interface BuildOffersInput {
  * - A registrar that said "unsupported" for this TLD is left out.
  */
 export function buildOffers(input: BuildOffersInput): DomainAvailability[] {
-  const { domain, tld, live, catalog, enabled, displayName } = input;
+  const { domain, tld, live, catalog, enabled, displayName, purchaseUrl } =
+    input;
   const checkedAt = input.checkedAt ?? new Date();
   const liveResults = [...live.values()];
   const status = resolveStatus(liveResults);
@@ -89,7 +92,11 @@ export function buildOffers(input: BuildOffersInput): DomainAvailability[] {
     }
 
     const cat = catalogByRegistrar.get(registrarId);
-    const offer: DomainAvailability = { ...base, reason: liveResult?.reason };
+    const offer: DomainAvailability = {
+      ...base,
+      reason: liveResult?.reason,
+      purchaseUrl: purchaseUrl?.(registrarId),
+    };
 
     if (liveResult?.price !== undefined) {
       offer.price = liveResult.price;
@@ -105,6 +112,10 @@ export function buildOffers(input: BuildOffersInput): DomainAvailability[] {
       offer.currency = cat.currency;
       offer.priceSource = cat.source;
       offer.stale = cat.stale;
+      if (cat.originalCurrency && cat.originalRegisterPrice !== undefined) {
+        offer.originalCurrency = cat.originalCurrency;
+        offer.originalPrice = cat.originalRegisterPrice;
+      }
     } else if (premium) {
       offer.reason = offer.reason ?? 'premium_price_unavailable';
     }

@@ -1,3 +1,4 @@
+import { FxRatesService } from './fx-rates.service';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { inArray, ne, sql } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service';
@@ -26,6 +27,39 @@ export interface CatalogPrice {
   source: PriceSource;
   updatedAt: string;
   stale: boolean;
+  /** Set when converted to USD: the registrar's own currency and first-year price. */
+  originalCurrency?: string;
+  originalRegisterPrice?: number;
+}
+
+/**
+ * Express a catalog price in USD so offers can be sorted together. Prices in
+ * a currency we have no rate for are left as they are (and rank after USD).
+ */
+export function toUsd(
+  price: CatalogPrice,
+  convert: (amount: number, currency: string) => number | undefined,
+): CatalogPrice {
+  if (price.currency === 'USD') return price;
+  const register = convert(price.registerPrice, price.currency);
+  const renewal = convert(price.renewalPrice, price.currency);
+  if (register === undefined || renewal === undefined) return price;
+  return {
+    ...price,
+    registerPrice: register,
+    renewalPrice: renewal,
+    transferPrice:
+      price.transferPrice !== undefined
+        ? convert(price.transferPrice, price.currency)
+        : undefined,
+    regularRegisterPrice:
+      price.regularRegisterPrice !== undefined
+        ? convert(price.regularRegisterPrice, price.currency)
+        : undefined,
+    currency: 'USD',
+    originalCurrency: price.currency,
+    originalRegisterPrice: price.registerPrice,
+  };
 }
 
 export interface SyncReport {
@@ -54,10 +88,14 @@ export class TldPricesService {
     private readonly redisService: RedisService,
     @Inject(REGISTRAR_PROVIDERS)
     private readonly providers: IRegistrarProvider[],
+    private readonly fx: FxRatesService,
   ) {}
 
   /** Sync every price-catalog provider. One provider failing doesn't stop the others. */
   async syncAllPrices(only?: string[]): Promise<SyncReport[]> {
+    // Fresh exchange rates first, so newly synced non-USD prices convert correctly.
+    await this.fx.sync();
+
     const sources = this.providers
       .filter(isPriceCatalogSource)
       .filter((p) => p.isConfigured())
@@ -253,6 +291,14 @@ export class TldPricesService {
       }
     }
 
+    // Cached rows stay in the registrar's currency; convert on the way out.
+    const convert = await this.fx.converter();
+    for (const [tld, prices] of result) {
+      result.set(
+        tld,
+        prices.map((p) => toUsd(p, convert)),
+      );
+    }
     return result;
   }
 

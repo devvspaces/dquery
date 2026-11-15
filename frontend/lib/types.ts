@@ -21,6 +21,11 @@ export interface RegistrarPrice {
   threeYearTotal?: number | null;
   isPromo?: boolean;
   premium?: boolean;
+  /** Set when the price was converted to USD from the registrar's currency. */
+  originalCurrency?: string;
+  originalPrice?: number;
+  /** Outbound link to buy at this registrar. */
+  purchaseUrl?: string;
 }
 
 export type SortKey = "price" | "domainLength" | "extensionLength" | "name";

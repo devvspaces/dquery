@@ -6,6 +6,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { DomainResult, Technique } from "@/lib/types";
 import { TECHNIQUE_INFO } from "@/components/word-builder";
+import { BuyLink, PriceText } from "@/components/offer-bits";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 
 interface DomainRowProps {
@@ -149,7 +150,7 @@ export function DomainRow({ result, index }: DomainRowProps) {
         <div className="animate-scale-in mt-1 rounded-lg border border-border bg-card p-4">
           {result.prices.length > 0 ? (
             <div className="space-y-2">
-              <div className="grid grid-cols-4 gap-4 border-b border-border pb-2">
+              <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr_auto] gap-4 border-b border-border pb-2">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Registrar
                 </span>
@@ -162,11 +163,12 @@ export function DomainRow({ result, index }: DomainRowProps) {
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Renewal
                 </span>
+                <span className="w-12" aria-hidden />
               </div>
               {result.prices.map((p) => (
                 <div
                   key={p.registrar}
-                  className="grid grid-cols-4 items-center gap-4 py-1.5"
+                  className="grid grid-cols-[1.4fr_1fr_1fr_1fr_auto] items-center gap-4 py-1.5"
                 >
                   <span className="text-sm font-medium text-foreground">
                     {p.registrar}
@@ -200,9 +202,7 @@ export function DomainRow({ result, index }: DomainRowProps) {
                         : "Taken"}
                   </span>
                   <span className="text-sm text-foreground">
-                    {p.registerPrice !== null
-                      ? `$${p.registerPrice.toFixed(2)}`
-                      : "-"}
+                    <PriceText amount={p.registerPrice} offer={p} />
                   </span>
                   <span
                     className="text-sm text-muted-foreground"
@@ -218,6 +218,9 @@ export function DomainRow({ result, index }: DomainRowProps) {
                     {p.isPromo && (
                       <span className="ml-1 text-xs">(1st-yr promo)</span>
                     )}
+                  </span>
+                  <span className="w-12 text-right">
+                    <BuyLink offer={p} />
                   </span>
                 </div>
               ))}

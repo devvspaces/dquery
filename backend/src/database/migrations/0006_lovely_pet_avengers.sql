@@ -1,0 +1,1 @@
+ALTER TABLE "tld_prices" ALTER COLUMN "tld" SET DATA TYPE varchar(63);

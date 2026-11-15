@@ -36,6 +36,20 @@
       "when": 1794736907688,
       "tag": "0004_pretty_moira_mactaggert",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794739877179,
+      "tag": "0005_giant_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794740100857,
+      "tag": "0006_lovely_pet_avengers",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,15 @@ import {
 } from './phonology';
 import type { Candidate, NormalizedConfig } from './types';
 
+/**
+ * Small per-technique prior: onset swaps (bledger) and Markov inventions are
+ * the least "meaningful", so they need to win on other merits to rank high.
+ */
+const TECHNIQUE_PRIOR: Partial<Record<Candidate['technique'], number>> = {
+  rhyme: 0.88,
+  markov: 0.95,
+};
+
 /** Spellings people mishear or mistype when a name is said aloud ("radio test"). */
 const SPELLING_TRAPS = [
   /ph/,
@@ -79,7 +88,7 @@ export function scoreName(
 
   const penalty = SPELLING_TRAPS.filter((re) => re.test(letters)).length * 0.04;
 
-  return (
-    0.35 * pron + 0.2 * len + 0.15 * memo + 0.15 * seed + 0.1 * feel - penalty
-  );
+  const raw =
+    0.35 * pron + 0.2 * len + 0.15 * memo + 0.15 * seed + 0.1 * feel - penalty;
+  return raw * (TECHNIQUE_PRIOR[c.technique] ?? 1);
 }

@@ -70,3 +70,28 @@ describe("DomainRow registrar badges", () => {
     expect(screen.getByTitle("3-year total: $28.94")).toBeInTheDocument();
   });
 });
+
+describe("DomainRow buy links and converted prices", () => {
+  it("links to the registrar and shows the original currency on hover", () => {
+    renderExpanded([
+      price({
+        registrar: "WhoGoHost",
+        registerPrice: 11.09,
+        originalCurrency: "NGN",
+        originalPrice: 14999,
+        purchaseUrl: "https://www.whogohost.com/host/cart.php?a=add&domain=register&query=acme.com",
+      }),
+    ]);
+    const link = screen.getByRole("link", { name: "Buy at WhoGoHost" });
+    expect(link).toHaveAttribute("href", expect.stringContaining("whogohost.com"));
+    expect(link).toHaveAttribute("rel", expect.stringContaining("sponsored"));
+    expect(screen.getByTitle(/Charged as NGN\s?14,999/)).toBeInTheDocument();
+  });
+
+  it("hides the buy link when the name is taken", () => {
+    renderExpanded([
+      price({ available: false, status: "taken", purchaseUrl: "https://x.test", registerPrice: null }),
+    ]);
+    expect(screen.queryByRole("link", { name: /Buy at/ })).not.toBeInTheDocument();
+  });
+});

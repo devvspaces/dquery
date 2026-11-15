@@ -182,6 +182,8 @@ export class RegistrarsService {
           catalog: catalog.get(d.tld) ?? [],
           enabled,
           displayName: (id) => this.displayName(id),
+          purchaseUrl: (id) =>
+            this.providersById.get(id)?.purchaseUrl?.(`${d.domain}.${d.tld}`),
           checkedAt,
         });
 

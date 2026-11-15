@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { AvailabilityPill, BuyLink, PriceText } from "@/components/offer-bits";
 import type { DomainResult } from "@/lib/types";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 
@@ -205,6 +206,7 @@ function SingleDomainResult({ result }: { result: DomainResult }) {
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right w-20">
               Renewal
             </span>
+            <span className="w-14" aria-hidden />
           </div>
 
           {/* Table rows */}
@@ -231,27 +233,18 @@ function SingleDomainResult({ result }: { result: DomainResult }) {
                     )}
                   </div>
                   <div className="flex justify-center w-20">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                        p.available
-                          ? "bg-success/10 text-success"
-                          : "bg-destructive/10 text-destructive"
-                      )}
-                    >
-                      <span className={cn("h-1.5 w-1.5 rounded-full", p.available ? "bg-success" : "bg-destructive")} />
-                      {p.available ? "Yes" : "No"}
-                    </span>
+                    <AvailabilityPill offer={p} />
                   </div>
                   <span className="text-sm text-right w-20 font-mono text-foreground">
-                    {p.registerPrice !== null ? `$${p.registerPrice.toFixed(2)}` : (
-                      <span className="text-muted-foreground">--</span>
-                    )}
+                    <PriceText amount={p.registerPrice} offer={p} />
                   </span>
                   <span className="text-sm text-right w-20 font-mono text-muted-foreground">
                     {p.renewalPrice !== null ? `$${p.renewalPrice.toFixed(2)}` : (
                       <span className="text-muted-foreground">--</span>
                     )}
+                  </span>
+                  <span className="w-14 text-right">
+                    <BuyLink offer={p} />
                   </span>
                 </div>
               );
@@ -431,6 +424,7 @@ function MultiTldResults({ results }: { results: DomainResult[] }) {
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-center w-16">Status</span>
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right w-20">Register</span>
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider text-right w-20">Renewal</span>
+                    <span className="w-14" aria-hidden />
                   </div>
                   <div className="divide-y divide-border">
                     {[...result.prices]
@@ -454,19 +448,16 @@ function MultiTldResults({ results }: { results: DomainResult[] }) {
                               )}
                             </div>
                             <div className="flex justify-center w-16">
-                              <span className={cn(
-                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                                p.available ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                              )}>
-                                <span className={cn("h-1.5 w-1.5 rounded-full", p.available ? "bg-success" : "bg-destructive")} />
-                                {p.available ? "Yes" : "No"}
-                              </span>
+                              <AvailabilityPill offer={p} />
                             </div>
                             <span className="text-sm text-right w-20 font-mono text-foreground">
-                              {p.registerPrice !== null ? `$${p.registerPrice.toFixed(2)}` : <span className="text-muted-foreground">--</span>}
+                              <PriceText amount={p.registerPrice} offer={p} />
                             </span>
                             <span className="text-sm text-right w-20 font-mono text-muted-foreground">
                               {p.renewalPrice !== null ? `$${p.renewalPrice.toFixed(2)}` : <span className="text-muted-foreground">--</span>}
+                            </span>
+                            <span className="w-14 text-right">
+                              <BuyLink offer={p} />
                             </span>
                           </div>
                         );

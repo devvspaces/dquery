@@ -43,6 +43,11 @@ export interface DomainAvailability {
   /** Provider-specific reason (e.g. Cloudflare `extension_not_supported_via_api`). */
   reason?: string;
   error?: string;
+  /** When `price` was converted to USD: the registrar's own currency and price. */
+  originalCurrency?: string;
+  originalPrice?: number;
+  /** Where to buy this domain at this registrar (may carry an affiliate ID). */
+  purchaseUrl?: string;
   checkedAt: Date;
 }
 
@@ -108,6 +113,8 @@ export interface IRegistrarProvider {
   getRateLimits(): ProviderRateLimits;
   /** Static list of TLDs the provider can check live. Empty means "unknown, try anything". */
   getSupportedTlds(): Promise<string[]>;
+  /** Link to buy `fqdn` at this registrar, if we know one. */
+  purchaseUrl?(fqdn: string): string | undefined;
 }
 
 export interface AvailabilityChecker extends IRegistrarProvider {

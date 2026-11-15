@@ -31,6 +31,8 @@ export class GoDaddyProvider
 {
   readonly id = 'godaddy';
   protected readonly displayName = 'GoDaddy';
+  protected readonly purchaseUrlTemplate =
+    'https://www.godaddy.com/domainsearch/find?domainToCheck={domain}';
   readonly providesLivePricing = true;
 
   private readonly client: AxiosInstance;

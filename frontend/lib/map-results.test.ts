@@ -78,3 +78,39 @@ describe("mapBackendToFrontend", () => {
     expect(rows[0].available).toBe(true);
   });
 });
+
+describe("mapBackendToFrontend: links, conversions, techniques", () => {
+  it("passes through buy links, original prices and word-engine techniques", () => {
+    const [row] = mapBackendToFrontend(
+      [
+        {
+          domain: "ledgerly",
+          tld: "com",
+          bestPrice: 9.37,
+          results: [
+            {
+              registrar: "OVHcloud",
+              available: true,
+              status: "available",
+              price: 9.37,
+              originalCurrency: "EUR",
+              originalPrice: 8.49,
+              purchaseUrl: "https://ovh.test/ledgerly.com",
+            },
+          ],
+        },
+      ],
+      ["ledgerly"],
+      [".com"],
+      { ledgerly: "affix" }
+    );
+    expect(row.technique).toBe("affix");
+    expect(row.prices[0]).toEqual(
+      expect.objectContaining({
+        originalCurrency: "EUR",
+        originalPrice: 8.49,
+        purchaseUrl: "https://ovh.test/ledgerly.com",
+      })
+    );
+  });
+});
