@@ -43,3 +43,15 @@ CI runs all of the above on every push and pull request to `master`
 ## How pricing works
 
 Availability comes from the registry, so it is checked **once** per domain (with failover between registrars). Prices come from a daily-synced **TLD price catalog** per registrar; only premium names and registrars without a price-list API (Cloudflare, GoDaddy) are priced live. See `backend/src/modules/registrars/` — adding a registrar means one provider file plus one line in `registrars.module.ts`.
+
+## Deployment
+
+- **Frontend** — Vercel (Git integration, root directory `frontend`, env `NEXT_PUBLIC_API_URL=https://api.dquery.bytechain.dev`).
+- **Backend** — every green push to `master` builds `ghcr.io/devvspaces/dquery-backend:sha-<commit>` and deploys it over SSH
+  (see the `image` / `deploy` jobs in `.github/workflows/backend.yml`).
+  On the server, `/opt/domainq` holds `docker-compose.yml` (from `deploy/docker-compose.prod.yml`) and the production `.env`
+  (never committed). The API runs on `127.0.0.1:3012` behind nginx (`deploy/nginx-api.dquery.conf`) and uses the host Postgres.
+- Useful server commands (in `/opt/domainq`):
+  - `docker compose logs -f api`
+  - `docker compose exec api node dist/cli.js prices:sync`
+  - Bull Board is not exposed publicly: `ssh -L 3012:127.0.0.1:3012 root@<server>` then open `http://localhost:3012/admin/queues`.

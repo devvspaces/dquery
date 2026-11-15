@@ -5,11 +5,13 @@ on:
     branches: [master]
     paths:
       - 'backend/**'
+      - 'deploy/**'
       - '.github/workflows/backend.yml'
   pull_request:
     branches: [master]
     paths:
       - 'backend/**'
+      - 'deploy/**'
       - '.github/workflows/backend.yml'
 
 permissions:
@@ -94,3 +96,102 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
       - run: pnpm test:e2e
+
+  image:
+    name: Docker image
+    needs: [unit, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # PRs only build (to check the Dockerfile); pushes to master also publish.
+      - uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/devvspaces/dquery-backend:${{ steps.meta.outputs.tag }}
+            ghcr.io/devvspaces/dquery-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to server
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    # Never cancel a deploy half-way; queue the next one instead.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE_TAG: ${{ needs.image.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        working-directory: .
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Upload compose file
+        working-directory: .
+        run: scp deploy/docker-compose.prod.yml "root@${{ secrets.DEPLOY_HOST }}:/opt/domainq/docker-compose.yml"
+
+      - name: Pull, migrate, restart
+        working-directory: .
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Variables go over stdin (not the ssh command line) so the token never
+        # appears in the server's process list.
+        run: |
+          {
+            printf 'IMAGE_TAG=%q GHCR_USER=%q GHCR_TOKEN=%q\n' "$IMAGE_TAG" "$GHCR_USER" "$GHCR_TOKEN"
+            cat <<'REMOTE'
+          set -euo pipefail
+          cd /opt/domainq
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          export IMAGE_TAG
+          docker compose pull api
+          docker compose up -d redis
+          docker compose run --rm --no-deps api node dist/database/migrate.js
+          docker compose up -d api
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3012/api/health >/dev/null; then
+              echo "Healthy: $IMAGE_TAG"
+              docker image prune -f >/dev/null
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "API did not become healthy" >&2
+          docker compose logs --tail 100 api >&2
+          exit 1
+          REMOTE
+          } | ssh "root@${{ secrets.DEPLOY_HOST }}" 'bash -s'
