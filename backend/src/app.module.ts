@@ -10,6 +10,7 @@ import { CreditsModule } from './modules/credits/credits.module';
 import { LLMModule } from './modules/llm/llm.module';
 import { RegistrarsModule } from './modules/registrars/registrars.module';
 import { DomainsModule } from './modules/domains/domains.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { QueuesModule } from './queues/queues.module';
 import { BullBoardConfigModule } from './queues/bullboard.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -44,6 +45,7 @@ import queueConfig from './queues/config/queue.config';
     RegistrarsModule,
     QueuesModule,
     DomainsModule,
+    PaymentsModule,
     BullBoardConfigModule,
   ],
   controllers: [AppController],
