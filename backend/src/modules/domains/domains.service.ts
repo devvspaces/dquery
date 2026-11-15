@@ -34,8 +34,13 @@ export class DomainsService {
     dto: GenerateDomainsDto,
     userId: string,
   ): Promise<{ jobId: string; creditsDeducted: number }> {
+    const engine = dto.engine ?? 'ai';
+    const businessName =
+      dto.businessName?.trim() ||
+      dto.wordEngine?.seeds.join(' ').trim() ||
+      'Invented names';
     const quote = this.pricing.quoteGeneration(
-      'ai',
+      engine,
       dto.count,
       dto.tlds.length,
     );
@@ -55,9 +60,10 @@ export class DomainsService {
     await this.creditsService.deductCredits(
       userId,
       totalCredits,
-      `Domain generation (${dto.count} domains) with availability checking (${dto.tlds.length} TLDs)`,
+      `${engine === 'words' ? 'Word engine' : 'AI'} generation (${dto.count} names) with availability checking (${dto.tlds.length} TLDs)`,
       {
-        businessName: dto.businessName,
+        engine,
+        businessName,
         count: dto.count,
         tlds: dto.tlds,
         style: dto.style,
@@ -67,7 +73,9 @@ export class DomainsService {
     // Create generation job
     const jobId = await this.generationProducer.addJob({
       userId,
-      businessName: dto.businessName,
+      engine,
+      wordEngine: dto.wordEngine,
+      businessName,
       description: dto.description,
       count: dto.count,
       style: dto.style,

@@ -19,6 +19,8 @@ export class PriceSyncScheduler implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    // Tests must not register a cron in a (possibly shared) Redis.
+    if (process.env.NODE_ENV === 'test') return;
     const pattern =
       this.configService.get<string>('PRICE_SYNC_CRON') || '15 3 * * *';
     try {

@@ -8,19 +8,22 @@ import { TldSelector, DEFAULT_SELECTED } from "@/components/tld-selector";
 import { CostNote } from "@/components/cost-note";
 import { estimateGeneration } from "@/lib/pricing";
 import { GENERATION_COUNT, MAX_TLDS } from "@/lib/search-defaults";
+import { WordBuilder, DEFAULT_WORD_CONFIG } from "@/components/word-builder";
+import { cn } from "@/lib/utils";
+import type { GenerateRequest, WordEngineConfig } from "@/lib/types";
 
 interface GeneratorFormProps {
-  onGenerate: (data: {
-    businessName: string;
-    description: string;
-    tlds: string[];
-  }) => void;
+  onGenerate: (data: GenerateRequest) => void;
   isLoading: boolean;
 }
 
+type Engine = GenerateRequest["engine"];
+
 export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
+  const [engine, setEngine] = useState<Engine>("ai");
   const [businessName, setBusinessName] = useState("");
   const [description, setDescription] = useState("");
+  const [wordConfig, setWordConfig] = useState<WordEngineConfig>(DEFAULT_WORD_CONFIG);
   const [selectedTlds, setSelectedTlds] = useState<string[]>(DEFAULT_SELECTED);
 
   const handleToggleTld = (tld: string) => {
@@ -29,18 +32,57 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
     );
   };
 
+  const tooManyTlds = selectedTlds.length > MAX_TLDS;
+  const wordsReady =
+    (wordConfig.strategies?.length ?? 0) > 0 &&
+    (wordConfig.seeds.length > 0 ||
+      wordConfig.strategies!.some((s) => s === "coin" || s === "markov"));
+  const isValid =
+    selectedTlds.length > 0 &&
+    !tooManyTlds &&
+    (engine === "ai" ? businessName.trim().length > 0 : wordsReady);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessName.trim() || selectedTlds.length === 0) return;
-    onGenerate({ businessName: businessName.trim(), description: description.trim(), tlds: selectedTlds });
+    if (!isValid) return;
+    onGenerate({
+      engine,
+      businessName: businessName.trim(),
+      description: description.trim(),
+      tlds: selectedTlds,
+      wordEngine: engine === "words" ? wordConfig : undefined,
+    });
   };
-
-  const tooManyTlds = selectedTlds.length > MAX_TLDS;
-  const isValid =
-    businessName.trim().length > 0 && selectedTlds.length > 0 && !tooManyTlds;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="flex rounded-lg bg-muted p-0.5" role="tablist" aria-label="Generator">
+        {(
+          [
+            ["ai", "AI ideas", "Describe your business"],
+            ["words", "Word builder", "Combine your own words, no AI"],
+          ] as const
+        ).map(([id, label, hint]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={engine === id}
+            title={hint}
+            onClick={() => setEngine(id)}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+              engine === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {engine === "words" ? (
+        <WordBuilder value={wordConfig} onChange={setWordConfig} />
+      ) : (
       <div className="space-y-4">
         <div className="space-y-2">
           <label
@@ -80,6 +122,7 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
           />
         </div>
       </div>
+      )}
 
       <TldSelector selected={selectedTlds} onToggle={handleToggleTld} />
 
@@ -117,7 +160,7 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
             >
               <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </svg>
-            Generate domain names
+            {engine === "words" ? "Build & check names" : "Generate domain names"}
           </span>
         )}
       </Button>
@@ -129,7 +172,7 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
         <CostNote
           cost={(p) =>
             selectedTlds.length
-              ? estimateGeneration(p, "ai", GENERATION_COUNT, selectedTlds.length)
+              ? estimateGeneration(p, engine, GENERATION_COUNT, selectedTlds.length)
               : null
           }
           detail={`${GENERATION_COUNT} names × ${selectedTlds.length} extension${selectedTlds.length === 1 ? "" : "s"}`}

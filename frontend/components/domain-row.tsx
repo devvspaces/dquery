@@ -4,7 +4,8 @@ import React from "react"
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import type { DomainResult } from "@/lib/types";
+import type { DomainResult, Technique } from "@/lib/types";
+import { TECHNIQUE_INFO } from "@/components/word-builder";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 
 interface DomainRowProps {
@@ -66,6 +67,14 @@ export function DomainRow({ result, index }: DomainRowProps) {
               {result.extension}
             </span>
           </div>
+          {result.technique && (
+            <span
+              className="hidden rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:inline"
+              data-testid="technique-badge"
+            >
+              {TECHNIQUE_INFO[result.technique as Technique]?.label ?? result.technique}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

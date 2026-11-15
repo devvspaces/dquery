@@ -13,6 +13,7 @@ import { AccountSheet } from "@/components/account-sheet";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 import type { DomainResult } from "@/lib/types";
 import { mapBackendToFrontend } from "@/lib/map-results";
+import type { GenerateRequest } from "@/lib/types";
 import { API_BASE_URL } from "@/lib/config";
 import { GENERATION_COUNT, POPULAR_TLDS } from "@/lib/search-defaults";
 import { InsufficientCreditsError } from "@/lib/pricing";
@@ -94,7 +95,8 @@ export default function Page() {
 
   // 2. Handle Domain Generation Flow (SSE Chaining)
   const handleGenerate = useCallback(
-    async (data: { businessName: string; description: string; tlds: string[] }) => {
+    async (data: GenerateRequest) => {
+      const words = data.engine === "words";
       // Force sign in if not authenticated
       if (!isAuthenticated) {
         localStorage.setItem(
@@ -119,10 +121,15 @@ export default function Page() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            businessName: data.businessName,
-            description: data.description,
+            engine: data.engine,
+            ...(words
+              ? { wordEngine: data.wordEngine }
+              : {
+                  businessName: data.businessName,
+                  description: data.description,
+                  style: "creative",
+                }),
             count: GENERATION_COUNT,
-            style: "creative",
             tlds: data.tlds.map((t) => t.replace(/^\./, "")), // strip leading dot for API
           }),
         });
@@ -138,13 +145,17 @@ export default function Page() {
         fetchProfile();
 
         // Establish the first SSE listener for LLM suggestions
-        setStreamStatusMessage("Generating name ideas with AI...");
+        setStreamStatusMessage(
+          words ? "Building names from your words..." : "Generating name ideas with AI..."
+        );
         const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
         const genSource = new EventSource(`${BACKEND_URL}${sseUrl}${tokenParam}`);
         genSseRef.current = genSource;
 
         genSource.addEventListener("job:active", () => {
-          setStreamStatusMessage("AI is thinking and crafting domains...");
+          setStreamStatusMessage(
+            words ? "Combining, blending and scoring names..." : "AI is thinking and crafting domains..."
+          );
         });
 
         // When LLM suggestions finish
@@ -152,10 +163,11 @@ export default function Page() {
           try {
             const completedData = JSON.parse(event.data);
             const rawBasenames = completedData.result.domains; // e.g. ["swiftlaunch", "getswiftlaunch"]
+            const techniques: Record<string, string> = completedData.result.techniques ?? {};
             const targetTlds = data.tlds; // e.g. [".com", ".io"]
 
             // Pre-populate suggestions in UI instantly showing loading states next to each
-            const prePopulated = mapBackendToFrontend([], rawBasenames, targetTlds);
+            const prePopulated = mapBackendToFrontend([], rawBasenames, targetTlds, techniques);
             setResults(prePopulated);
 
             genSource.close();
@@ -177,7 +189,8 @@ export default function Page() {
                 const updatedResults = mapBackendToFrontend(
                   aggregatedResults,
                   rawBasenames,
-                  targetTlds
+                  targetTlds,
+                  techniques
                 );
                 setResults(updatedResults);
 

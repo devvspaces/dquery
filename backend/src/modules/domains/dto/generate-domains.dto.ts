@@ -10,9 +10,27 @@ import {
   MaxLength,
   ArrayMinSize,
   ArrayMaxSize,
+  IsIn,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { WordEngineConfigDto } from '../../namegen/dto/word-engine-config.dto';
 
 export class GenerateDomainsDto {
+  /** 'ai' (LLM) or 'words' (rule-based word engine). Defaults to 'ai'. */
+  @IsOptional()
+  @IsIn(['ai', 'words'])
+  engine?: 'ai' | 'words';
+
+  /** Required when engine is 'words'. */
+  @ValidateIf((o: GenerateDomainsDto) => o.engine === 'words')
+  @ValidateNested()
+  @Type(() => WordEngineConfigDto)
+  wordEngine?: WordEngineConfigDto;
+
+  /** Required for AI generation; optional for the word engine (seeds are used). */
+  @ValidateIf((o: GenerateDomainsDto) => o.engine !== 'words')
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)

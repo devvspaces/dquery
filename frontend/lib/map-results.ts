@@ -30,7 +30,8 @@ export interface BackendCheckItem {
 export function mapBackendToFrontend(
   backendResults: BackendCheckItem[],
   basenames: string[],
-  tlds: string[]
+  tlds: string[],
+  techniques: Record<string, string> = {}
 ): DomainResult[] {
   const resultsMap = new Map<string, DomainResult>();
 
@@ -46,6 +47,7 @@ export function mapBackendToFrontend(
         available: false,
         prices: [],
         bestPrice: null,
+        technique: techniques[name],
       });
     }
   }

@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '../database/database.module';
 import { LLMModule } from '../modules/llm/llm.module';
+import { NamegenModule } from '../modules/namegen/namegen.module';
 import { CreditsModule } from '../modules/credits/credits.module';
 import { RegistrarsModule } from '../modules/registrars/registrars.module';
 import { QUEUE_NAMES } from './constants/queue-names';
@@ -39,6 +40,7 @@ import { PriceSyncScheduler } from './producers/price-sync.scheduler';
     ),
     DatabaseModule,
     LLMModule,
+    NamegenModule,
     CreditsModule,
     RegistrarsModule,
   ],

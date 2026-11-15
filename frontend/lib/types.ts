@@ -5,6 +5,8 @@ export interface DomainResult {
   available: boolean;
   prices: RegistrarPrice[];
   bestPrice: number | null;
+  /** Word engine only: how the name was built (blend, affix, …). */
+  technique?: string;
 }
 
 export type AvailabilityStatus = "available" | "taken" | "unknown" | "unsupported";
@@ -24,10 +26,45 @@ export interface RegistrarPrice {
 export type SortKey = "price" | "domainLength" | "extensionLength" | "name";
 export type SortDirection = "asc" | "desc";
 
+export type Technique =
+  | "compound"
+  | "blend"
+  | "affix"
+  | "clip"
+  | "respell"
+  | "rhyme"
+  | "alliterate"
+  | "coin"
+  | "markov";
+
+export type Feel = "neutral" | "light" | "strong";
+
+/** Mirrors the backend WordEngineConfigDto. */
+export interface WordEngineConfig {
+  seeds: string[];
+  strategies?: Technique[];
+  patterns?: string[];
+  prefixes?: string[];
+  suffixes?: string[];
+  useBuiltInAffixes?: boolean;
+  minLen?: number;
+  maxLen?: number;
+  feel?: Feel;
+  seed?: number;
+}
+
+export interface GeneratedName {
+  name: string;
+  technique: Technique;
+  score: number;
+}
+
 export interface GenerateRequest {
+  engine: "ai" | "words";
   businessName: string;
   description: string;
   tlds: string[];
+  wordEngine?: WordEngineConfig;
 }
 
 export interface CheckRequest {

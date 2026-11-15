@@ -1,7 +1,12 @@
 import { DomainAvailability } from '../../modules/registrars/interfaces/registrar-provider.interface';
 
+import type { WordEngineConfig } from '../../modules/namegen/types';
+
 export interface DomainGenerationJobData {
   userId: string;
+  /** 'ai' (LLM, default) or 'words' (rule-based word engine). */
+  engine?: 'ai' | 'words';
+  wordEngine?: WordEngineConfig;
   businessName: string;
   description?: string;
   count: number;
@@ -21,6 +26,8 @@ export interface DomainGenerationJobResult {
   estimatedCost: number;
   provider: string;
   model: string;
+  /** Word engine only: the naming technique behind each name. */
+  techniques?: Record<string, string>;
   searchHistoryId: string;
   checkingJobIds: string[];
 }

@@ -11,6 +11,8 @@ import { LLMModule } from './modules/llm/llm.module';
 import { RegistrarsModule } from './modules/registrars/registrars.module';
 import { DomainsModule } from './modules/domains/domains.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { NamegenModule } from './modules/namegen/namegen.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { QueuesModule } from './queues/queues.module';
 import { BullBoardConfigModule } from './queues/bullboard.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -46,6 +48,9 @@ import queueConfig from './queues/config/queue.config';
     QueuesModule,
     DomainsModule,
     PaymentsModule,
+    NamegenModule,
+    // Limits are set per route with @Throttle; this is only the fallback.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 600 }]),
     BullBoardConfigModule,
   ],
   controllers: [AppController],

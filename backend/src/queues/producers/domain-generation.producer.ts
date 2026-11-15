@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -28,6 +29,9 @@ export class DomainGenerationProducer {
     const db = this.databaseService.getDb();
 
     const job = await this.generationQueue.add('generate-domains', data, {
+      // Unique ids: BullMQ's default counter restarts when Redis is reset,
+      // which would collide with job_queue_logs rows from before.
+      jobId: `gen-${randomUUID()}`,
       attempts:
         this.configService.get<number>('queue.generation.attempts') || 2,
       backoff: this.configService.get('queue.generation.backoff') || {

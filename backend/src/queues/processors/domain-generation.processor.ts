@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { DatabaseService } from '../../database/database.service';
 import { LLMService } from '../../modules/llm/llm.service';
+import { NamegenService } from '../../modules/namegen/namegen.service';
 import { CreditsService } from '../../modules/credits/credits.service';
 import { CreditPricingService } from '../../modules/credits/credit-pricing.service';
 import { isFinalAttempt } from '../utils/attempts';
@@ -27,6 +28,7 @@ export class DomainGenerationProcessor extends WorkerHost {
 
   constructor(
     private readonly llmService: LLMService,
+    private readonly namegen: NamegenService,
     private readonly creditsService: CreditsService,
     private readonly checkingProducer: DomainCheckingProducer,
     private readonly databaseService: DatabaseService,
@@ -56,16 +58,7 @@ export class DomainGenerationProcessor extends WorkerHost {
         })
         .where(eq(jobQueueLogs.jobId, job.id as string));
 
-      // Generate domains using LLM
-      const generationResult = await this.llmService.generateDomains(
-        {
-          businessName: job.data.businessName,
-          description: job.data.description,
-          count: job.data.count,
-          style: job.data.style,
-        },
-        job.data.userId,
-      );
+      const generationResult = await this.generate(job.data);
 
       // Save to search history
       const [searchHistoryRecord] = await db
@@ -130,6 +123,7 @@ export class DomainGenerationProcessor extends WorkerHost {
         estimatedCost: generationResult.estimatedCost,
         provider: generationResult.provider,
         model: generationResult.model,
+        techniques: generationResult.techniques,
         searchHistoryId,
         checkingJobIds,
       };
@@ -166,7 +160,8 @@ export class DomainGenerationProcessor extends WorkerHost {
       // Refund once, and only when no retry is left.
       if (isFinalAttempt(job)) {
         const refund = checkingQueued
-          ? this.pricing.quoteGeneration('ai', 0, 0).generation
+          ? this.pricing.quoteGeneration(job.data.engine ?? 'ai', 0, 0)
+              .generation
           : job.data.creditsDeducted;
         await this.creditsService.addCredits(
           job.data.userId,
@@ -185,5 +180,40 @@ export class DomainGenerationProcessor extends WorkerHost {
 
       throw error;
     }
+  }
+
+  /** Names from the LLM or the rule-based word engine, in the same shape. */
+  private async generate(data: DomainGenerationJobData): Promise<{
+    domains: string[];
+    tokensUsed: DomainGenerationJobResult['tokensUsed'];
+    estimatedCost: number;
+    provider: string;
+    model: string;
+    techniques?: Record<string, string>;
+  }> {
+    if (data.engine === 'words') {
+      const names = this.namegen.generate({
+        seeds: [],
+        ...data.wordEngine,
+        count: data.count,
+      });
+      return {
+        domains: names.map((n) => n.name),
+        tokensUsed: { prompt: 0, completion: 0, total: 0 },
+        estimatedCost: 0,
+        provider: 'word-engine',
+        model: 'rules-v1',
+        techniques: Object.fromEntries(names.map((n) => [n.name, n.technique])),
+      };
+    }
+    return this.llmService.generateDomains(
+      {
+        businessName: data.businessName,
+        description: data.description,
+        count: data.count,
+        style: data.style,
+      },
+      data.userId,
+    );
   }
 }
