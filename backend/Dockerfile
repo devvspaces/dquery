@@ -10,7 +10,10 @@ FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm build
+RUN pnpm build \
+ && test -f dist/main.js \
+ && test -f dist/database/migrate.js \
+ && test -f dist/modules/namegen/data/lexicon.json
 
 # ---- prod-deps: runtime dependencies only ----
 FROM base AS prod-deps

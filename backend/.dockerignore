@@ -9,3 +9,4 @@ test
 .DS_Store
 spaceship_dom.html
 docker-compose.yml
+*.tsbuildinfo
