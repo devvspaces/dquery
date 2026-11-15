@@ -6,6 +6,8 @@ export interface DomainGenerationJobData {
   userId: string;
   /** 'ai' (LLM, default) or 'words' (rule-based word engine). */
   engine?: 'ai' | 'words';
+  /** false: generate names only; the client checks the ones it keeps. */
+  autoCheck?: boolean;
   wordEngine?: WordEngineConfig;
   businessName: string;
   description?: string;

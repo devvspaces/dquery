@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/config";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
@@ -286,47 +286,61 @@ export function WordBuilder({ value, onChange }: WordBuilderProps) {
   );
 }
 
-/** Debounced live preview (free, rate-limited on the server). */
+/** Preview names on demand (free, rate-limited on the server). Nothing runs until clicked. */
 function WordPreview({ config, onShuffle }: { config: WordEngineConfig; onShuffle: () => void }) {
   const { token, isAuthenticated, setAuthOpen } = useDomainQStore();
   const [names, setNames] = useState<GeneratedName[]>([]);
   const [state, setState] = useState<"idle" | "loading" | "error" | "limited">("idle");
-  const requestId = useRef(0);
+  const [previewedKey, setPreviewedKey] = useState<string | null>(null);
   const key = JSON.stringify(config);
+  const stale = previewedKey !== null && previewedKey !== key;
 
-  useEffect(() => {
-    if (!isAuthenticated || !token) return;
-    const id = ++requestId.current;
-    const timer = setTimeout(async () => {
-      setState("loading");
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/namegen/preview`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ ...JSON.parse(key), count: 24 }),
-        });
-        if (id !== requestId.current) return;
-        if (res.status === 429) return setState("limited");
-        if (!res.ok) return setState("error");
-        setNames(((await res.json()) as { names: GeneratedName[] }).names);
-        setState("idle");
-      } catch {
-        if (id === requestId.current) setState("error");
-      }
-    }, 450);
-    return () => clearTimeout(timer);
-  }, [key, token, isAuthenticated]);
+  const load = async (cfg: WordEngineConfig) => {
+    if (!token) return;
+    setState("loading");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/namegen/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...cfg, count: 24 }),
+      });
+      if (res.status === 429) return setState("limited");
+      if (!res.ok) return setState("error");
+      setNames(((await res.json()) as { names: GeneratedName[] }).names);
+      setPreviewedKey(JSON.stringify(cfg));
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  };
+
+  const shuffle = () => {
+    onShuffle();
+    void load({ ...config, seed: (config.seed ?? 1) + 1 });
+  };
 
   return (
     <div className="rounded-lg border border-dashed border-border p-3" data-testid="word-preview">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Preview {state === "loading" && "…"}
         </span>
         {isAuthenticated && (
-          <button type="button" onClick={onShuffle} className="text-xs text-primary hover:underline">
-            Shuffle
-          </button>
+          <span className="flex gap-3">
+            {names.length > 0 && (
+              <button type="button" onClick={shuffle} className="text-xs text-primary hover:underline">
+                Shuffle
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void load(config)}
+              disabled={state === "loading"}
+              className="rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary disabled:opacity-50"
+            >
+              {names.length ? "Refresh preview" : "Preview names"}
+            </button>
+          </span>
         )}
       </div>
       {!isAuthenticated ? (
@@ -341,22 +355,29 @@ function WordPreview({ config, onShuffle }: { config: WordEngineConfig; onShuffl
       ) : state === "error" ? (
         <p className="text-xs text-destructive">Couldn&apos;t load a preview.</p>
       ) : names.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Add a word or pick a technique to see names.</p>
+        <p className="text-xs text-muted-foreground">
+          Set up your words and techniques, then click Preview names. Previews are free.
+        </p>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {names.map((n) => (
-            <span
-              key={n.name}
-              title={TECHNIQUE_INFO[n.technique]?.label}
-              className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-foreground"
-            >
-              {n.name}
-            </span>
-          ))}
-        </div>
+        <>
+          {stale && (
+            <p className="mb-2 text-[11px] text-muted-foreground">Settings changed. Refresh to update.</p>
+          )}
+          <div className={cn("flex flex-wrap gap-1.5", stale && "opacity-50")}>
+            {names.map((n) => (
+              <span
+                key={n.name}
+                title={TECHNIQUE_INFO[n.technique]?.label}
+                className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-foreground"
+              >
+                {n.name}
+              </span>
+            ))}
+          </div>
+        </>
       )}
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Searching checks the top 15 names across your extensions, with full price comparison.
+        Generating costs a small fee; you then pick which names to check across your extensions.
       </p>
     </div>
   );

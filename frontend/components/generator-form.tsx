@@ -160,7 +160,7 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
             >
               <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
             </svg>
-            {engine === "words" ? "Build & check names" : "Generate domain names"}
+            {engine === "words" ? "Build names" : "Generate domain names"}
           </span>
         )}
       </Button>
@@ -170,12 +170,8 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
         </p>
       ) : (
         <CostNote
-          cost={(p) =>
-            selectedTlds.length
-              ? estimateGeneration(p, engine, GENERATION_COUNT, selectedTlds.length)
-              : null
-          }
-          detail={`${GENERATION_COUNT} names × ${selectedTlds.length} extension${selectedTlds.length === 1 ? "" : "s"}`}
+          cost={(p) => estimateGeneration(p, engine, 0, 0)}
+          detail={`to generate ${GENERATION_COUNT} names. You choose which to check next.`}
         />
       )}
     </form>

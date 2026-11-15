@@ -15,7 +15,9 @@ import type { DomainResult } from "@/lib/types";
 import { mapBackendToFrontend } from "@/lib/map-results";
 import type { GenerateRequest } from "@/lib/types";
 import { API_BASE_URL } from "@/lib/config";
-import { GENERATION_COUNT, POPULAR_TLDS } from "@/lib/search-defaults";
+import { buildCheckPairs, GENERATION_COUNT, type DomainPair } from "@/lib/search-defaults";
+import { DEFAULT_SELECTED } from "@/components/tld-selector";
+import { NameReview, type ReviewState } from "@/components/name-review";
 import { InsufficientCreditsError } from "@/lib/pricing";
 
 /** Turn a failed API response into an Error; 402 becomes InsufficientCreditsError. */
@@ -35,6 +37,8 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [streamStatusMessage, setStreamStatusMessage] = useState<string | null>(null);
+  /** Generated names waiting for the user to pick which to check. */
+  const [review, setReview] = useState<ReviewState | null>(null);
 
   // Zustand Store Hooks
   const {
@@ -85,7 +89,7 @@ export default function Page() {
           handleGenerate(payload);
         } else if (type === "check") {
           setActiveTab("check");
-          handleCheck(payload.domain);
+          handleCheck(payload.domain, payload.tlds ?? DEFAULT_SELECTED);
         }
       } catch (err) {
         console.error("Failed to parse pending search:", err);
@@ -93,16 +97,26 @@ export default function Page() {
     }
   }, [isInitialized, isAuthenticated]);
 
-  // 2. Handle Domain Generation Flow (SSE Chaining)
+  const failRequest = useCallback(
+    (err: unknown, fallback: string) => {
+      console.error(fallback, err);
+      if (err instanceof InsufficientCreditsError) {
+        setCreditsOpen(true);
+      } else {
+        alert((err as Error).message || fallback);
+      }
+      setIsLoading(false);
+      setStreamStatusMessage(null);
+    },
+    [setCreditsOpen]
+  );
+
+  // 2. Generate names only (the generation fee is charged); the user reviews them next.
   const handleGenerate = useCallback(
     async (data: GenerateRequest) => {
       const words = data.engine === "words";
-      // Force sign in if not authenticated
       if (!isAuthenticated) {
-        localStorage.setItem(
-          "pending_search",
-          JSON.stringify({ type: "generate", payload: data })
-        );
+        localStorage.setItem("pending_search", JSON.stringify({ type: "generate", payload: data }));
         setAuthOpen(true);
         return;
       }
@@ -111,242 +125,108 @@ export default function Page() {
       setIsLoading(true);
       setHasSearched(true);
       setResults([]);
-      setStreamStatusMessage("Submitting generation request...");
+      setReview(null);
+      setStreamStatusMessage(words ? "Building names from your words..." : "Generating name ideas with AI...");
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/domains/generate`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             engine: data.engine,
+            autoCheck: false,
             ...(words
               ? { wordEngine: data.wordEngine }
-              : {
-                  businessName: data.businessName,
-                  description: data.description,
-                  style: "creative",
-                }),
+              : { businessName: data.businessName, description: data.description, style: "creative" }),
             count: GENERATION_COUNT,
-            tlds: data.tlds.map((t) => t.replace(/^\./, "")), // strip leading dot for API
+            tlds: data.tlds.map((t) => t.replace(/^\./, "")),
           }),
         });
+        if (!res.ok) throw await apiError(res, "Failed to start name generation");
 
-        if (!res.ok) {
-          throw await apiError(res, "Failed to trigger domain generation");
-        }
-
-        const jobResponse = await res.json();
-        const { jobId, sseUrl } = jobResponse;
-
-        // Deduct upfront credit display instantly
+        const { sseUrl } = await res.json();
         fetchProfile();
 
-        // Establish the first SSE listener for LLM suggestions
-        setStreamStatusMessage(
-          words ? "Building names from your words..." : "Generating name ideas with AI..."
-        );
         const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
         const genSource = new EventSource(`${BACKEND_URL}${sseUrl}${tokenParam}`);
         genSseRef.current = genSource;
+        const done = () => {
+          genSource.close();
+          genSseRef.current = null;
+          setIsLoading(false);
+          setStreamStatusMessage(null);
+        };
 
         genSource.addEventListener("job:active", () => {
           setStreamStatusMessage(
             words ? "Combining, blending and scoring names..." : "AI is thinking and crafting domains..."
           );
         });
-
-        // When LLM suggestions finish
-        genSource.addEventListener("job:completed", (event: any) => {
+        genSource.addEventListener("job:completed", (event: MessageEvent) => {
           try {
-            const completedData = JSON.parse(event.data);
-            const rawBasenames = completedData.result.domains; // e.g. ["swiftlaunch", "getswiftlaunch"]
-            const techniques: Record<string, string> = completedData.result.techniques ?? {};
-            const targetTlds = data.tlds; // e.g. [".com", ".io"]
-
-            // Pre-populate suggestions in UI instantly showing loading states next to each
-            const prePopulated = mapBackendToFrontend([], rawBasenames, targetTlds, techniques);
-            setResults(prePopulated);
-
-            genSource.close();
-            genSseRef.current = null;
-
-            // Immediately chain the second SSE listener for aggregate checker batch progress
-            setStreamStatusMessage("Suggestions loaded. Checking registrars in bulk...");
-            const batchSource = new EventSource(
-              `${BACKEND_URL}/api/domains/batch/${jobId}/stream${tokenParam}`
-            );
-            checkSseRef.current = batchSource;
-
-            batchSource.addEventListener("batch:update", (batchEvent: any) => {
-              try {
-                const batchData = JSON.parse(batchEvent.data);
-                const aggregatedResults = batchData.results || [];
-
-                // Format and overlay checked values in UI dynamically
-                const updatedResults = mapBackendToFrontend(
-                  aggregatedResults,
-                  rawBasenames,
-                  targetTlds,
-                  techniques
-                );
-                setResults(updatedResults);
-
-                // Update loader progress status message
-                setStreamStatusMessage(
-                  `Checking availabilities: ${batchData.completed}/${batchData.total} resolved (${batchData.progress}%)`
-                );
-
-                // Complete and close connections when all checks finish
-                if (batchData.completed + batchData.failed >= batchData.total && batchData.total > 0) {
-                  batchSource.close();
-                  checkSseRef.current = null;
-                  setIsLoading(false);
-                  setStreamStatusMessage(null);
-                  fetchProfile(); // update final credits
-                  fetchSavedSearches(); // update history
-                }
-              } catch (err) {
-                console.error("Error parsing batch check event:", err);
-              }
+            const { result } = JSON.parse(event.data);
+            setReview({
+              names: result.domains as string[],
+              techniques: (result.techniques ?? {}) as Record<string, string>,
+              tlds: data.tlds,
             });
-
-            batchSource.addEventListener("error", (err) => {
-              console.error("Batch check SSE error:", err);
-              batchSource.close();
-              checkSseRef.current = null;
-              setIsLoading(false);
-              setStreamStatusMessage(null);
-            });
+            fetchSavedSearches();
           } catch (err) {
             console.error("Error parsing completion event:", err);
-            genSource.close();
-            genSseRef.current = null;
-            setIsLoading(false);
-            setStreamStatusMessage(null);
           }
+          done();
         });
-
-        genSource.addEventListener("job:failed", (event: any) => {
-          const failedData = JSON.parse(event.data);
-          console.error("Generation job failed:", failedData.error);
-          genSource.close();
-          genSseRef.current = null;
-          setIsLoading(false);
-          setStreamStatusMessage(null);
-          fetchProfile(); // reload refunded credits
+        genSource.addEventListener("job:failed", (event: MessageEvent) => {
+          console.error("Generation job failed:", JSON.parse(event.data).error);
+          alert("Name generation failed. Your credits were refunded.");
+          done();
+          fetchProfile();
         });
-
         genSource.addEventListener("error", (err) => {
           console.error("Generation SSE stream error:", err);
-          genSource.close();
-          genSseRef.current = null;
-          setIsLoading(false);
-          setStreamStatusMessage(null);
+          done();
         });
-      } catch (err: any) {
-        console.error("Generation failed:", err);
-        if (err instanceof InsufficientCreditsError) {
-          setHasSearched(false);
-          setCreditsOpen(true);
-        } else {
-          alert(err.message || "Something went wrong starting domain generation");
-        }
-        setIsLoading(false);
-        setStreamStatusMessage(null);
+      } catch (err) {
+        if (err instanceof InsufficientCreditsError) setHasSearched(false);
+        failRequest(err, "Something went wrong starting name generation");
       }
     },
-    [isAuthenticated, token, fetchProfile, fetchSavedSearches, setCreditsOpen]
+    [isAuthenticated, token, fetchProfile, fetchSavedSearches, failRequest, setAuthOpen]
   );
 
-  // 3. Handle Domain Availability Checker Flow (Bulk Async SSE)
-  const handleCheck = useCallback(
-    async (domainInput: string) => {
-      // Force sign in if not authenticated
-      if (!isAuthenticated) {
-        localStorage.setItem(
-          "pending_search",
-          JSON.stringify({ type: "check", payload: { domain: domainInput } })
-        );
-        setAuthOpen(true);
-        return;
-      }
-
+  // 3. Check a set of name × extension pairs (charged per pair) and stream results.
+  const runChecks = useCallback(
+    async (pairs: DomainPair[], techniques: Record<string, string> = {}) => {
       cleanupSse();
       setIsLoading(true);
       setHasSearched(true);
-      setResults([]);
-      setStreamStatusMessage("Starting domain checker...");
+      setStreamStatusMessage("Starting availability checks...");
+
+      const basenames = [...new Set(pairs.map((p) => p.domain))];
+      const tlds = [...new Set(pairs.map((p) => `.${p.tld}`))];
+      setResults(mapBackendToFrontend([], basenames, tlds, techniques));
 
       try {
-        const hasDot = domainInput.includes(".");
-        let domainsToCheck: Array<{ domain: string; tld: string }> = [];
-        let queryBasename = domainInput;
-        let queryTlds = POPULAR_TLDS;
-
-        if (hasDot) {
-          const lastDot = domainInput.lastIndexOf(".");
-          queryBasename = domainInput.substring(0, lastDot);
-          const rawTld = domainInput.substring(lastDot + 1);
-          domainsToCheck = [{ domain: queryBasename, tld: rawTld }];
-          queryTlds = [`.${rawTld}`];
-        } else {
-          domainsToCheck = POPULAR_TLDS.map((t) => ({
-            domain: queryBasename,
-            tld: t.replace(/^\./, ""),
-          }));
-        }
-
-        // Initialize UI with loaders immediately
-        const prePopulated = mapBackendToFrontend([], [queryBasename], queryTlds);
-        setResults(prePopulated);
-
-        // Call the async bulk checker endpoint
         const res = await fetch(`${BACKEND_URL}/api/domains/check/bulk`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ domains: domainsToCheck }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ domains: pairs }),
         });
+        if (!res.ok) throw await apiError(res, "Failed to start availability checks");
 
-        if (!res.ok) {
-          throw await apiError(res, "Failed to trigger domain checks");
-        }
-
-        const { batchId, sseUrl } = await res.json();
-
-        // Refresh balance instantly after deduction
+        const { sseUrl } = await res.json();
         fetchProfile();
-
-        // Open SSE batch checker stream listener
         setStreamStatusMessage("Checking registrars in real-time...");
         const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
         const batchSource = new EventSource(`${BACKEND_URL}${sseUrl}${tokenParam}`);
         checkSseRef.current = batchSource;
 
-        batchSource.addEventListener("batch:update", (event: any) => {
+        batchSource.addEventListener("batch:update", (event: MessageEvent) => {
           try {
-            const batchData = JSON.parse(event.data);
-            const aggregatedResults = batchData.results || [];
-
-            // Overlay checking results in real time
-            const updatedResults = mapBackendToFrontend(
-              aggregatedResults,
-              [queryBasename],
-              queryTlds
-            );
-            setResults(updatedResults);
-
-            setStreamStatusMessage(
-              `Progress: ${batchData.completed}/${batchData.total} resolved (${batchData.progress}%)`
-            );
-
-            // Complete checks
-            if (batchData.completed + batchData.failed >= batchData.total && batchData.total > 0) {
+            const batch = JSON.parse(event.data);
+            setResults(mapBackendToFrontend(batch.results || [], basenames, tlds, techniques));
+            setStreamStatusMessage(`Checking: ${batch.completed}/${batch.total} batches (${batch.progress}%)`);
+            if (batch.completed + batch.failed >= batch.total && batch.total > 0) {
               batchSource.close();
               checkSseRef.current = null;
               setIsLoading(false);
@@ -354,36 +234,51 @@ export default function Page() {
               fetchProfile();
             }
           } catch (err) {
-            console.error("Error parsing checker batch event:", err);
+            console.error("Error parsing batch event:", err);
           }
         });
-
         batchSource.addEventListener("error", (err) => {
-          console.error("Checker SSE stream error:", err);
+          console.error("Batch SSE stream error:", err);
           batchSource.close();
           checkSseRef.current = null;
           setIsLoading(false);
           setStreamStatusMessage(null);
         });
-      } catch (err: any) {
-        console.error("Domain check failed:", err);
-        if (err instanceof InsufficientCreditsError) {
-          setHasSearched(false);
-          setCreditsOpen(true);
-        } else {
-          alert(err.message || "Failed to initiate domain check");
-        }
-        setIsLoading(false);
-        setStreamStatusMessage(null);
+      } catch (err) {
+        failRequest(err, "Failed to start availability checks");
       }
     },
-    [isAuthenticated, token, fetchProfile, setCreditsOpen]
+    [token, fetchProfile, failRequest]
+  );
+
+  // Check tab: a typed name/domain across the chosen extensions.
+  const handleCheck = useCallback(
+    (query: string, tlds: string[]) => {
+      if (!isAuthenticated) {
+        localStorage.setItem("pending_search", JSON.stringify({ type: "check", payload: { domain: query, tlds } }));
+        setAuthOpen(true);
+        return;
+      }
+      const pairs = buildCheckPairs(query, tlds);
+      if (pairs.length) void runChecks(pairs);
+    },
+    [isAuthenticated, runChecks, setAuthOpen]
+  );
+
+  // Review step: check only the names the user kept.
+  const handleReviewCheck = useCallback(
+    (pairs: DomainPair[], techniques: Record<string, string>) => {
+      setReview(null);
+      void runChecks(pairs, techniques);
+    },
+    [runChecks]
   );
 
   const handleTabChange = (tab: "generate" | "check") => {
     cleanupSse();
     setActiveTab(tab);
     setResults([]);
+    setReview(null);
     setHasSearched(false);
     setStreamStatusMessage(null);
     setIsLoading(false);
@@ -433,13 +328,14 @@ export default function Page() {
                 <ul className="space-y-2.5">
                   <TipItem text="Use short, memorable business names for better results" />
                   <TipItem text="Add a description to get more relevant suggestions" />
-                  <TipItem text="Select fewer TLDs to focus on the best options" />
+                  <TipItem text="Review the generated names and keep only the ones you like" />
+                  <TipItem text="You only pay to check the names you keep" />
                   <TipItem text="Click any result to compare registrar prices" />
                 </ul>
               ) : (
                 <ul className="space-y-2.5">
-                  <TipItem text="Enter a full domain like mybiz.com for a specific check" />
-                  <TipItem text="Enter just a name to check across all popular TLDs" />
+                  <TipItem text="Enter a name like mybiz, or a full domain like mybiz.com" />
+                  <TipItem text="Pick the extensions to check it across" />
                   <TipItem text="Expand results to compare prices across registrars" />
                 </ul>
               )}
@@ -462,6 +358,17 @@ export default function Page() {
               ) : (
                 <EmptyStateCheck />
               )
+            ) : activeTab === "generate" && review ? (
+              <NameReview
+                key={review.names.join(",")}
+                review={review}
+                isLoading={isLoading}
+                onCheck={handleReviewCheck}
+                onBack={() => {
+                  setReview(null);
+                  setHasSearched(false);
+                }}
+              />
             ) : activeTab === "generate" ? (
               <ResultsTable results={results} isLoading={isLoading && results.length === 0} />
             ) : (

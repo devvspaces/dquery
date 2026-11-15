@@ -39,10 +39,13 @@ export class DomainsService {
       dto.businessName?.trim() ||
       dto.wordEngine?.seeds.join(' ').trim() ||
       'Invented names';
+    const autoCheck = dto.autoCheck !== false;
+    // Without auto-check only the generation fee is charged now; checks are
+    // charged later when the user checks the names they kept.
     const quote = this.pricing.quoteGeneration(
       engine,
-      dto.count,
-      dto.tlds.length,
+      autoCheck ? dto.count : 0,
+      autoCheck ? dto.tlds.length : 0,
     );
     const totalCredits = quote.total;
 
@@ -74,6 +77,7 @@ export class DomainsService {
     const jobId = await this.generationProducer.addJob({
       userId,
       engine,
+      autoCheck,
       wordEngine: dto.wordEngine,
       businessName,
       description: dto.description,

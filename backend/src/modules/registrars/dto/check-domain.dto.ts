@@ -40,7 +40,7 @@ export class DomainTldPair {
 export class BulkCheckDomainsDto {
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(100)
+  @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => DomainTldPair)
   domains: DomainTldPair[];

@@ -11,6 +11,7 @@ import {
   ArrayMinSize,
   ArrayMaxSize,
   IsIn,
+  IsBoolean,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -22,6 +23,15 @@ export class GenerateDomainsDto {
   @IsOptional()
   @IsIn(['ai', 'words'])
   engine?: 'ai' | 'words';
+
+  /**
+   * true (default): check every name × TLD straight away (charged up front).
+   * false: only generate names; the client reviews them and then calls
+   * /domains/check/bulk for the ones it keeps.
+   */
+  @IsOptional()
+  @IsBoolean()
+  autoCheck?: boolean;
 
   /** Required when engine is 'words'. */
   @ValidateIf((o: GenerateDomainsDto) => o.engine === 'words')

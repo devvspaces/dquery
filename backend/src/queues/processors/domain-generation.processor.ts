@@ -77,9 +77,10 @@ export class DomainGenerationProcessor extends WorkerHost {
 
       const tlds = job.data.tlds;
 
-      // Flatten domain + TLD combinations
+      // Flatten domain + TLD combinations (none when the client reviews first)
+      const autoCheck = job.data.autoCheck !== false;
       const domainTldPairs: Array<{ domain: string; tld: string }> = [];
-      for (const domain of generationResult.domains) {
+      for (const domain of autoCheck ? generationResult.domains : []) {
         for (const tld of tlds) {
           domainTldPairs.push({ domain, tld });
         }

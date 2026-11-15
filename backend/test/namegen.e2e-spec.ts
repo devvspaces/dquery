@@ -132,6 +132,55 @@ describe('Word engine (e2e)', () => {
     expect(job.result!.domains).toHaveLength(10);
   });
 
+  it('generates names only (no checks, generation fee only) when autoCheck is false', async () => {
+    const { accessToken, user } = await signIn('reviewer');
+    const before = (await app.get(CreditsService).getBalance(user.id)).balance;
+    const res = await request(app.getHttpServer())
+      .post('/domains/generate')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        engine: 'words',
+        autoCheck: false,
+        wordEngine: { seeds: ['ledger'], strategies: ['affix'] },
+        count: 20,
+        tlds: ['com', 'io', 'dev'],
+      })
+      .expect(201);
+    const fee = app.get(CreditPricingService).pricing().perWordGeneration;
+    expect(res.body.creditsDeducted).toBe(fee);
+    expect(
+      (await app.get(CreditsService).getBalance(user.id)).balance,
+    ).toBeCloseTo(before - fee);
+
+    let job: {
+      status: string;
+      result?: { domains: string[]; checkingJobIds: string[] };
+    } = { status: 'waiting' };
+    for (let i = 0; i < 40 && job.status !== 'completed'; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      job = (
+        await request(app.getHttpServer())
+          .get(`/domains/jobs/${res.body.jobId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+      ).body;
+    }
+    expect(job.result!.domains).toHaveLength(20);
+    expect(job.result!.checkingJobIds).toEqual([]);
+  });
+
+  it('accepts a bulk check of up to 500 domains', async () => {
+    const { accessToken } = await signIn('bulk');
+    const domains = Array.from({ length: 501 }, (_, i) => ({
+      domain: `n${i}`,
+      tld: 'com',
+    }));
+    await request(app.getHttpServer())
+      .post('/domains/check/bulk')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ domains })
+      .expect(400);
+  });
+
   it('still requires businessName for AI generation', async () => {
     const { accessToken } = await signIn('ai');
     await request(app.getHttpServer())

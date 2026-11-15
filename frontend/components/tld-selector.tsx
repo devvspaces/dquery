@@ -193,6 +193,7 @@ export function TldSelector({
         <div className="flex flex-wrap gap-1">
           {selectedTlds.map((tld) => (
             <button
+              type="button"
               key={tld.extension}
               onClick={() => onToggle(tld.extension)}
               className="group inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary transition-all hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
@@ -219,6 +220,7 @@ export function TldSelector({
 
       {/* Expand/collapse toggle */}
       <button
+              type="button"
         onClick={() => {
           setIsExpanded(!isExpanded);
           if (!isExpanded) {
@@ -295,6 +297,10 @@ export function TldSelector({
               <input
                 ref={searchRef}
                 type="text"
+                onKeyDown={(e) => {
+                  // Enter must not submit the surrounding search form.
+                  if (e.key === "Enter") e.preventDefault();
+                }}
                 placeholder="Search extensions..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -302,6 +308,7 @@ export function TldSelector({
               />
               {search && (
                 <button
+              type="button"
                   onClick={() => setSearch("")}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
@@ -324,6 +331,7 @@ export function TldSelector({
 
             {/* Sort button */}
             <button
+              type="button"
               onClick={cycleSortMode}
               className={cn(
                 "flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-xs font-medium transition-all shrink-0",
@@ -366,6 +374,7 @@ export function TldSelector({
                   : ALL_TLDS.filter((t) => t.category === cat).length;
               return (
                 <button
+              type="button"
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={cn(
@@ -423,6 +432,7 @@ export function TldSelector({
                   const isDisabled = !isSelected && atLimit;
                   return (
                     <button
+              type="button"
                       key={tld.extension}
                       onClick={() => handleToggle(tld.extension)}
                       disabled={isDisabled}
@@ -468,6 +478,7 @@ export function TldSelector({
             </span>
             <div className="flex items-center gap-2">
               <button
+              type="button"
                 onClick={() => {
                   // Select all visible (up to limit)
                   const remaining = MAX_SELECTIONS - selected.length;
@@ -485,6 +496,7 @@ export function TldSelector({
               </button>
               <span className="text-muted-foreground/30">|</span>
               <button
+              type="button"
                 onClick={() => {
                   // Deselect all visible
                   for (const t of filteredTlds) {

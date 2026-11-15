@@ -56,8 +56,7 @@ describe("WordBuilder", () => {
     expect(screen.getByTestId("word-preview").textContent).toContain("Sign in");
   });
 
-  it("previews names for signed-in users", async () => {
-    vi.useFakeTimers();
+  it("only previews when Preview names is clicked", async () => {
     useDomainQStore.setState({ isAuthenticated: true, token: "t" });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ names: [{ name: "ledgerly", technique: "affix", score: 0.8 }] }), {
@@ -65,15 +64,21 @@ describe("WordBuilder", () => {
       })
     );
     render(<Harness onConfig={() => {}} />);
+    const input = screen.getByLabelText("Your words");
+    fireEvent.change(input, { target: { value: "ledger" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(screen.getByText("Blend"));
+    await new Promise((r) => setTimeout(r, 600));
+    expect(fetchMock).not.toHaveBeenCalled();
+
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(500);
+      fireEvent.click(screen.getByRole("button", { name: "Preview names" }));
     });
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/namegen/preview"),
       expect.objectContaining({ method: "POST" })
     );
-    expect(screen.getByText("ledgerly")).toBeInTheDocument();
-    vi.useRealTimers();
+    expect(await screen.findByText("ledgerly")).toBeInTheDocument();
   });
 });
 
@@ -90,13 +95,13 @@ describe("GeneratorForm word builder mode", () => {
     const onGenerate = vi.fn();
     render(<GeneratorForm onGenerate={onGenerate} isLoading={false} />);
     fireEvent.click(screen.getByRole("tab", { name: "Word builder" }));
-    // 0.25 + 15 names × 6 extensions × 0.05 = 4.75
-    expect(screen.getByTestId("cost-note").textContent).toContain("4.75 credits");
+    // Only the generation fee up front; checks are priced at the review step.
+    expect(screen.getByTestId("cost-note").textContent).toContain("0.25 credits");
 
     const input = screen.getByLabelText("Your words");
     fireEvent.change(input, { target: { value: "ledger" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    fireEvent.click(screen.getByRole("button", { name: /build & check names/i }));
+    fireEvent.click(screen.getByRole("button", { name: /build names/i }));
 
     expect(onGenerate).toHaveBeenCalledWith(
       expect.objectContaining({
