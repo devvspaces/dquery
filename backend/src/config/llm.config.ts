@@ -8,7 +8,7 @@ export default registerAs('llm', () => ({
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
-    model: process.env.LLM_ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+    model: process.env.LLM_ANTHROPIC_MODEL || 'claude-opus-5-5',
   },
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,

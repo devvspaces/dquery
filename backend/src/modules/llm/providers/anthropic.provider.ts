@@ -29,7 +29,7 @@ export class AnthropicProvider implements ILLMProvider {
 
     this.model =
       this.configService.get<string>('llm.anthropic.model') ||
-      'claude-3-5-sonnet-20241022';
+      'claude-opus-5-5';
   }
 
   async generateDomains(
@@ -52,8 +52,10 @@ export class AnthropicProvider implements ILLMProvider {
     try {
       const message = await this.client.messages.create({
         model: this.model,
-        max_tokens: 1024,
-        temperature: 0.9, // Higher for creativity
+        max_tokens: 16000,
+        // Current models reject temperature; effort controls thinking depth.
+        // Naming domains is a light task, so low effort keeps it fast and cheap.
+        output_config: { effort: 'low' },
         messages: [
           {
             role: 'user',
@@ -63,13 +65,20 @@ export class AnthropicProvider implements ILLMProvider {
       });
 
       // Extract text content
-      const content = message.content[0];
-      if (content.type !== 'text') {
+      // Thinking blocks may precede the answer, so find the text block.
+      if (message.stop_reason === 'refusal') {
+        throw new Error('Anthropic declined the request');
+      }
+      const content = message.content.find((block) => block.type === 'text');
+      if (!content) {
         throw new Error('Unexpected response type from Anthropic');
       }
 
-      // Parse JSON response
-      const text = content.text.trim();
+      // Parse JSON response (tolerate a ```json fence around it)
+      const text = content.text
+        .trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '');
       const parsed = JSON.parse(text) as { domains: string[] };
 
       if (!parsed.domains || !Array.isArray(parsed.domains)) {
@@ -112,19 +121,19 @@ export class AnthropicProvider implements ILLMProvider {
   }
 
   /**
-   * Estimate cost in cents based on token usage
-   * Pricing as of 2024:
-   * - Claude 3.5 Sonnet: $0.003 per 1K input tokens, $0.015 per 1K output tokens
-   * - Claude 3 Haiku: $0.00025 per 1K input tokens, $0.00125 per 1K output tokens
+   * Estimate cost in cents from token usage (USD per 1M tokens, input/output):
+   * Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 $0.10/$0.50.
    */
   estimateCost(promptTokens: number, completionTokens: number): number {
-    const isSonnet = this.model.includes('sonnet');
+    const [inputPerMillion, outputPerMillion] = this.model.includes('haiku')
+      ? [0.1, 0.5]
+      : this.model.includes('sonnet')
+        ? [2, 10]
+        : [4, 20];
 
-    const inputCostPer1K = isSonnet ? 0.3 : 0.025; // in cents
-    const outputCostPer1K = isSonnet ? 1.5 : 0.125; // in cents
-
-    const inputCost = (promptTokens / 1000) * inputCostPer1K;
-    const outputCost = (completionTokens / 1000) * outputCostPer1K;
+    // dollars per 1M tokens -> cents per token = x * 100 / 1e6
+    const inputCost = (promptTokens * inputPerMillion) / 10_000;
+    const outputCost = (completionTokens * outputPerMillion) / 10_000;
 
     return Math.ceil(inputCost + outputCost); // Round up to nearest cent
   }
