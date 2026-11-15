@@ -173,6 +173,9 @@ jobs:
           {
             printf 'IMAGE_TAG=%q GHCR_USER=%q GHCR_TOKEN=%q\n' "$IMAGE_TAG" "$GHCR_USER" "$GHCR_TOKEN"
             cat <<'REMOTE'
+          # Wrapped in a function so bash parses the whole script before running it
+          # (otherwise a command reading stdin can swallow the rest of the script).
+          deploy() {
           set -euo pipefail
           cd /opt/domainq
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
@@ -180,7 +183,7 @@ jobs:
           export IMAGE_TAG
           docker compose pull api
           docker compose up -d redis
-          docker compose run --rm --no-deps api node dist/database/migrate.js
+          docker compose run --rm --no-deps -T api node dist/database/migrate.js < /dev/null
           docker compose up -d api
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:3012/api/health >/dev/null; then
@@ -193,5 +196,7 @@ jobs:
           echo "API did not become healthy" >&2
           docker compose logs --tail 100 api >&2
           exit 1
+          }
+          deploy
           REMOTE
           } | ssh "root@${{ secrets.DEPLOY_HOST }}" 'bash -s'
