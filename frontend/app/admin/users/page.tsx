@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DataTable, PageHeader, Panel, QueryState, StatusBadge } from "@/components/admin/bits";
 import { ago, num, useAdminQuery } from "@/lib/admin-api";
+import { CreditDialog, type CreditTarget } from "@/components/admin/credit-dialog";
 
 interface UserRow {
   id: string;
@@ -23,6 +24,7 @@ export default function AdminUsers() {
   const [draft, setDraft] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
+  const [crediting, setCrediting] = useState<CreditTarget | null>(null);
   useEffect(() => {
     const t = setTimeout(() => {
       setQ(draft);
@@ -51,7 +53,7 @@ export default function AdminUsers() {
         <QueryState isLoading={isLoading} error={error} />
         {data && (
           <>
-            <DataTable head={["User", "Signed up", "Balance", "Bought", "Used", "Last activity", "Status"]} empty={data.data.length === 0}>
+            <DataTable head={["User", "Signed up", "Balance", "Bought", "Used", "Last activity", "Status", ""]} empty={data.data.length === 0}>
               {data.data.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/40">
                   <td className="px-3 py-2">
@@ -74,6 +76,16 @@ export default function AdminUsers() {
                       <StatusBadge tone="muted">Active</StatusBadge>
                     )}
                   </td>
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setCrediting({ id: u.id, name: u.name, email: u.email, balance: u.balance })}
+                      className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-foreground hover:border-primary hover:text-primary"
+                      aria-label={`Credit ${u.email}`}
+                    >
+                      Credit
+                    </button>
+                  </td>
                 </tr>
               ))}
             </DataTable>
@@ -92,6 +104,7 @@ export default function AdminUsers() {
           </>
         )}
       </Panel>
+      <CreditDialog user={crediting} open={!!crediting} onOpenChange={(o) => !o && setCrediting(null)} />
     </div>
   );
 }

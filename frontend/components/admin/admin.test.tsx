@@ -100,3 +100,36 @@ describe("SettingField", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+import { CreditDialog } from "./credit-dialog";
+
+describe("CreditDialog", () => {
+  beforeEach(() => useDomainQStore.setState({ token: "t" }));
+  afterEach(() => vi.restoreAllMocks());
+  const target = { id: "11111111-1111-4111-8111-111111111111", name: "Ada", email: "ada@example.test", balance: 3 };
+
+  it("gives a preset amount with a reason and a request id", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ balance: 28 }), { status: 201 })
+    );
+    const onOpenChange = vi.fn();
+    wrap(<CreditDialog user={target} open onOpenChange={onOpenChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "25" }));
+    expect(screen.getByText("New balance: 28 credits")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /give 25 credits/i }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(`/api/admin/users/${target.id}/credits`);
+    const body = JSON.parse(init.body as string);
+    expect(body).toEqual(expect.objectContaining({ delta: 25, reason: "Goodwill credit" }));
+    expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("won't remove more than the balance", () => {
+    wrap(<CreditDialog user={target} open onOpenChange={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Remove credits" }));
+    fireEvent.click(screen.getByRole("button", { name: "5" }));
+    expect(screen.getByText(/more than their balance/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /remove 5 credits/i })).toBeDisabled();
+  });
+});

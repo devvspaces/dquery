@@ -7,6 +7,7 @@ import { DataTable, KpiCard, PageHeader, Panel, QueryState, StatusBadge } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { num, useAdminMutation, useAdminQuery, when } from "@/lib/admin-api";
+import { CreditDialog } from "@/components/admin/credit-dialog";
 
 interface Detail {
   user: { id: string; email: string; name: string; provider: string; createdAt: string; suspendedAt: string | null; isAdmin: boolean };
@@ -21,25 +22,9 @@ export default function AdminUserDetail() {
   const { id } = useParams<{ id: string }>();
   const { data, isLoading, error } = useAdminQuery<Detail>(["user", id], `/users/${id}`);
   const invalidate = [["user", id], ["users"]];
-  const adjust = useAdminMutation<{ delta: number; reason: string; requestId: string }>("POST", `/users/${id}/credits`, invalidate);
   const suspend = useAdminMutation<{ reason?: string }>("POST", `/users/${id}/suspend`, invalidate);
   const unsuspend = useAdminMutation<Record<string, never>>("POST", `/users/${id}/unsuspend`, invalidate);
-  const [delta, setDelta] = useState("");
-  const [reason, setReason] = useState("");
-
-  const submitAdjust = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = Number(delta);
-    if (!amount || !reason.trim()) return;
-    try {
-      await adjust.mutateAsync({ delta: amount, reason: reason.trim(), requestId: crypto.randomUUID() });
-      toast.success(`${amount > 0 ? "Added" : "Removed"} ${Math.abs(amount)} credits`);
-      setDelta("");
-      setReason("");
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  };
+  const [creditOpen, setCreditOpen] = useState(false);
 
   const toggleSuspend = async () => {
     if (!data) return;
@@ -63,13 +48,18 @@ export default function AdminUserDetail() {
             title={data.user.name}
             description={`${data.user.email} · ${data.user.provider} · joined ${when(data.user.createdAt)}`}
             actions={
-              data.user.isAdmin ? (
-                <StatusBadge tone="ok">Admin</StatusBadge>
-              ) : (
-                <Button variant={data.user.suspendedAt ? "outline" : "destructive"} size="sm" onClick={toggleSuspend}>
-                  {data.user.suspendedAt ? "Unsuspend" : "Suspend"}
+              <>
+                <Button size="sm" onClick={() => setCreditOpen(true)}>
+                  Credit user
                 </Button>
-              )
+                {data.user.isAdmin ? (
+                  <StatusBadge tone="ok">Admin</StatusBadge>
+                ) : (
+                  <Button variant={data.user.suspendedAt ? "outline" : "destructive"} size="sm" onClick={toggleSuspend}>
+                    {data.user.suspendedAt ? "Unsuspend" : "Suspend"}
+                  </Button>
+                )}
+              </>
             }
           />
           {data.user.suspendedAt && (
@@ -83,33 +73,6 @@ export default function AdminUserDetail() {
             <KpiCard label="Used" value={num(data.wallet.totalUsed, 2)} hint="credits, all time" />
           </div>
 
-          <Panel title="Adjust credits">
-            <form onSubmit={submitAdjust} className="flex flex-wrap items-end gap-2">
-              <label className="space-y-1 text-xs text-muted-foreground">
-                Amount (negative removes)
-                <input
-                  type="number"
-                  step="0.01"
-                  value={delta}
-                  onChange={(e) => setDelta(e.target.value)}
-                  className="block h-9 w-32 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-                />
-              </label>
-              <label className="min-w-[14rem] flex-1 space-y-1 text-xs text-muted-foreground">
-                Reason (shown in the user&apos;s history)
-                <input
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  maxLength={300}
-                  placeholder="e.g. refund for failed search"
-                  className="block h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-                />
-              </label>
-              <Button type="submit" size="sm" disabled={adjust.isPending || !Number(delta) || !reason.trim()}>
-                Apply
-              </Button>
-            </form>
-          </Panel>
 
           <Tabs defaultValue="ledger">
             <TabsList>
@@ -163,6 +126,11 @@ export default function AdminUserDetail() {
               </Panel>
             </TabsContent>
           </Tabs>
+          <CreditDialog
+            user={{ id: data.user.id, name: data.user.name, email: data.user.email, balance: data.wallet.balance }}
+            open={creditOpen}
+            onOpenChange={setCreditOpen}
+          />
         </>
       )}
     </div>
