@@ -41,20 +41,18 @@ export function rejectReason(
   if (/(.{3,})\1/.test(letters)) return 'shape'; // stutters: "lunlunch", "ledledger"
   if (!lex.isPronounceable(letters)) return 'unpronounceable';
 
-  for (const bad of lex.blocklist) {
-    if (
-      bad.length >= 4
-        ? name.includes(bad)
-        : name === bad || c.parts?.includes(bad)
-    ) {
-      return 'blocked';
-    }
+  if (
+    lex.blockedSubstring.test(name) ||
+    lex.blockedShort.has(name) ||
+    c.parts?.some((p) => lex.blockedShort.has(p))
+  ) {
+    return 'blocked';
   }
 
-  for (const brand of lex.brands) {
-    if (name === brand) return 'brand';
-    if (name.length >= 5 && Math.abs(name.length - brand.length) <= 1) {
-      if (editDistance(name, brand, 1) <= 1) return 'brand';
+  for (let len = name.length - 1; len <= name.length + 1; len++) {
+    for (const brand of lex.brandsByLength.get(len) ?? []) {
+      if (name === brand) return 'brand';
+      if (name.length >= 5 && editDistance(name, brand, 1) <= 1) return 'brand';
     }
   }
 

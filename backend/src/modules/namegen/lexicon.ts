@@ -31,6 +31,12 @@ export class Lexicon {
   readonly related: Record<string, string[]>;
   readonly blocklist: string[];
   readonly brands: string[];
+  /** Blocklist words of 4+ letters as one regex (matched anywhere in a name). */
+  readonly blockedSubstring: RegExp;
+  /** Blocklist words of ≤3 letters (matched only as a whole name or part). */
+  readonly blockedShort: Set<string>;
+  /** Brands grouped by length, for cheap look-alike checks. */
+  readonly brandsByLength = new Map<number, string[]>();
   readonly affixes: Affixes;
 
   /** Trigram and bigram-context counts for the scoring model. */
@@ -51,6 +57,14 @@ export class Lexicon {
     this.related = load('related.json');
     this.blocklist = load('blocklist.json');
     this.brands = load('brands.json');
+    const long = this.blocklist.filter((w) => w.length >= 4);
+    this.blockedSubstring = new RegExp(long.join('|'));
+    this.blockedShort = new Set(this.blocklist.filter((w) => w.length < 4));
+    for (const b of this.brands) {
+      const list = this.brandsByLength.get(b.length) ?? [];
+      list.push(b);
+      this.brandsByLength.set(b.length, list);
+    }
     const affixes = load<Affixes>('affixes.json');
     this.affixes = {
       suffixes: [...new Set(affixes.suffixes)],
