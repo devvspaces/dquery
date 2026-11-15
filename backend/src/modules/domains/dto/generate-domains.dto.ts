@@ -7,20 +7,25 @@ import {
   Max,
   IsArray,
   IsEnum,
+  MaxLength,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 
 export class GenerateDomainsDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(100)
   businessName: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(500)
   description?: string;
 
   @IsInt()
   @Min(10)
-  @Max(100)
+  @Max(50)
   count: number;
 
   @IsEnum(['creative', 'professional', 'short', 'descriptive'])
@@ -28,8 +33,10 @@ export class GenerateDomainsDto {
   style?: 'creative' | 'professional' | 'short' | 'descriptive';
 
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
   @IsString({ each: true })
-  @IsNotEmpty()
+  @MaxLength(24, { each: true })
   tlds: string[];
 }
 

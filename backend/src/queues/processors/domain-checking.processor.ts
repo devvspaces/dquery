@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { DatabaseService } from '../../database/database.service';
 import { RegistrarsService } from '../../modules/registrars/registrars.service';
 import { CreditsService } from '../../modules/credits/credits.service';
+import { isFinalAttempt } from '../utils/attempts';
 import { QUEUE_NAMES } from '../constants/queue-names';
 import {
   DomainCheckingJobData,
@@ -127,25 +128,25 @@ export class DomainCheckingProcessor extends WorkerHost {
         })
         .where(eq(jobQueueLogs.jobId, job.id as string));
 
-      // Refund credits only if completely failed
-      await this.creditsService.addCredits(
-        job.data.userId,
-        job.data.creditsDeducted,
-        'refund',
-        `Checking job ${job.id} failed: ${errorMessage}`,
-        {
-          jobId: job.id,
-          domains: domainsToCheck.map((d) => `${d.domain}.${d.tld}`),
-        },
-      );
+      // Refund once, and only when no retry is left.
+      if (isFinalAttempt(job)) {
+        await this.creditsService.addCredits(
+          job.data.userId,
+          job.data.creditsDeducted,
+          'refund',
+          `Checking job ${job.id} failed: ${errorMessage}`,
+          {
+            jobId: job.id,
+            domains: domainsToCheck.map((d) => `${d.domain}.${d.tld}`),
+          },
+          { idempotencyKey: `refund:checking:${job.id}` },
+        );
 
-      // Update refund in logs
-      await db
-        .update(jobQueueLogs)
-        .set({
-          creditsRefunded: job.data.creditsDeducted.toString(),
-        })
-        .where(eq(jobQueueLogs.jobId, job.id as string));
+        await db
+          .update(jobQueueLogs)
+          .set({ creditsRefunded: job.data.creditsDeducted.toString() })
+          .where(eq(jobQueueLogs.jobId, job.id as string));
+      }
 
       throw error;
     }

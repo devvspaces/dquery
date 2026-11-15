@@ -1,15 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
-import { eq, desc } from 'drizzle-orm';
-import { credits, creditTransactions } from '../../database/schema';
+import { eq, desc, count } from 'drizzle-orm';
+import { credits, creditTransactions, users } from '../../database/schema';
 import { InsufficientCreditsException } from './exceptions/insufficient-credits.exception';
 import {
   CreditBalanceDto,
   CreditTransactionDto,
   CreditStatsDto,
   CreditEstimateDto,
+  CreditEstimateRequestDto,
 } from './dto';
+import { CreditPricingService } from './credit-pricing.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Injectable()
@@ -19,6 +21,7 @@ export class CreditsService {
   constructor(
     private databaseService: DatabaseService,
     private configService: ConfigService,
+    private pricingService: CreditPricingService,
   ) {}
 
   /**
@@ -144,8 +147,10 @@ export class CreditsService {
     type: 'purchase' | 'refund' | 'bonus',
     description: string,
     metadata?: any,
+    options: { idempotencyKey?: string } = {},
   ): Promise<number> {
     const db = this.databaseService.getDb();
+    const { idempotencyKey } = options;
 
     try {
       const newBalance = await db.transaction(async (tx) => {
@@ -161,6 +166,22 @@ export class CreditsService {
         }
 
         const currentBalance = parseFloat(creditRecord.balance);
+
+        // Already applied (e.g. a retried refund or a replayed webhook): no-op.
+        // Checked under the row lock, and backed by a unique index.
+        if (idempotencyKey) {
+          const [existing] = await tx
+            .select({ id: creditTransactions.id })
+            .from(creditTransactions)
+            .where(eq(creditTransactions.idempotencyKey, idempotencyKey))
+            .limit(1);
+          if (existing) {
+            this.logger.warn(
+              `Skipping duplicate credit operation ${idempotencyKey} for user ${userId}`,
+            );
+            return currentBalance;
+          }
+        }
 
         // 2. Calculate new balance
         const newBalance = currentBalance + amount;
@@ -188,6 +209,7 @@ export class CreditsService {
           balanceBefore: creditRecord.balance,
           balanceAfter: newBalance.toFixed(2),
           metadata: metadata ? JSON.stringify(metadata) : null,
+          idempotencyKey: idempotencyKey ?? null,
         });
 
         this.logger.log(
@@ -264,56 +286,48 @@ export class CreditsService {
   }
 
   /**
-   * Estimate credit cost for operations
+   * Estimate the credit cost of an operation, using the same prices that are charged.
    */
-  async estimateCost(
-    operation: string,
-    domains?: number,
-    registrars?: number,
-  ): Promise<CreditEstimateDto> {
-    const creditsConfig = {
-      perGeneration:
-        this.configService.get<number>('credits.perGeneration') || 2,
-      perDomainCheck:
-        this.configService.get<number>('credits.perDomainCheck') || 0.1,
-      perRegistrarQuery:
-        this.configService.get<number>('credits.perRegistrarQuery') || 0.05,
-      perBatch: this.configService.get<number>('credits.perBatch') || 0.5,
+  estimateCost(dto: CreditEstimateRequestDto): CreditEstimateDto {
+    const quote =
+      dto.operation === 'check'
+        ? this.pricingService.quoteChecks(dto.names ?? 1)
+        : this.pricingService.quoteGeneration(
+            dto.engine ?? 'ai',
+            dto.names ?? 15,
+            dto.tlds ?? 1,
+          );
+    return new CreditEstimateDto(dto.operation, quote);
+  }
+
+  /**
+   * How many free credits a new user gets, given how many users existed before them.
+   */
+  signupGrantAmount(existingUsers: number): number {
+    const early = this.configService.get<number>('credits.freeEarly', 10);
+    const limit = this.configService.get<number>('credits.freeEarlyLimit', 500);
+    const fallback = this.configService.get<number>('credits.freeDefault', 5);
+    return existingUsers < limit ? early : fallback;
+  }
+
+  /** Public promo info for the sign-in dialog. */
+  async getPromo(): Promise<{
+    earlyAmount: number;
+    earlyLimit: number;
+    earlyRemaining: number;
+    defaultAmount: number;
+  }> {
+    const db = this.databaseService.getDb();
+    const [{ value }] = await db.select({ value: count() }).from(users);
+    const earlyLimit = this.configService.get<number>(
+      'credits.freeEarlyLimit',
+      500,
+    );
+    return {
+      earlyAmount: this.configService.get<number>('credits.freeEarly', 10),
+      earlyLimit,
+      earlyRemaining: Math.max(0, earlyLimit - Number(value)),
+      defaultAmount: this.configService.get<number>('credits.freeDefault', 5),
     };
-
-    const breakdown: any = {};
-    let total = 0;
-
-    switch (operation) {
-      case 'generation':
-        breakdown.baseOperation = creditsConfig.perGeneration;
-        total = creditsConfig.perGeneration;
-        break;
-
-      case 'check':
-        if (domains && registrars) {
-          breakdown.perDomain = creditsConfig.perDomainCheck;
-          breakdown.perRegistrar = creditsConfig.perRegistrarQuery;
-          breakdown.domains = domains;
-          breakdown.registrars = registrars;
-          total = domains * registrars * creditsConfig.perRegistrarQuery;
-        }
-        break;
-
-      case 'batch':
-        breakdown.baseOperation = creditsConfig.perBatch;
-        if (domains) {
-          breakdown.domains = domains;
-          total = creditsConfig.perBatch * Math.ceil(domains / 20); // Assuming 20 domains per batch
-        } else {
-          total = creditsConfig.perBatch;
-        }
-        break;
-
-      default:
-        break;
-    }
-
-    return new CreditEstimateDto(operation, breakdown, total);
   }
 }

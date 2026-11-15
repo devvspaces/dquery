@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCredits } from "@/lib/pricing";
+
 import { useState } from "react";
 import {
   Dialog,
@@ -65,7 +67,9 @@ export function CreditsDialog({ open, onOpenChange }: CreditsDialogProps) {
               Buy credits
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Each search costs 1 credit. Choose a pack and payment method.
+              AI generation costs 1 credit per run, and each name × extension checked costs 0.05
+              (with the full registrar price comparison). A typical search of 15 names across 3
+              extensions is 3.25 credits.
             </DialogDescription>
           </DialogHeader>
           {user && (
@@ -77,7 +81,7 @@ export function CreditsDialog({ open, onOpenChange }: CreditsDialogProps) {
                 <path d="M8.5 14.6a4 4 0 0 0 7 0" />
               </svg>
               <span className="text-sm text-muted-foreground">Current balance:</span>
-              <span className="text-sm font-semibold text-foreground">{user.credits?.toFixed(1) ?? "0.0"} credits</span>
+              <span className="text-sm font-semibold text-foreground">{formatCredits(user.credits)} credits</span>
             </div>
           )}
         </div>

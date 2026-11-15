@@ -14,9 +14,19 @@ import { useDomainQStore } from "@/lib/store/use-domainq-store";
 import type { DomainResult } from "@/lib/types";
 import { mapBackendToFrontend } from "@/lib/map-results";
 import { API_BASE_URL } from "@/lib/config";
+import { GENERATION_COUNT, POPULAR_TLDS } from "@/lib/search-defaults";
+import { InsufficientCreditsError } from "@/lib/pricing";
+
+/** Turn a failed API response into an Error; 402 becomes InsufficientCreditsError. */
+async function apiError(res: Response, fallback: string): Promise<Error> {
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 402) {
+    return new InsufficientCreditsError(body.required ?? 0, body.available ?? 0);
+  }
+  return new Error(body.message || fallback);
+}
 
 const BACKEND_URL = API_BASE_URL;
-const POPULAR_TLDS = [".com", ".net", ".org", ".io", ".co", ".dev", ".ai", ".app"];
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<"generate" | "check">("generate");
@@ -111,15 +121,14 @@ export default function Page() {
           body: JSON.stringify({
             businessName: data.businessName,
             description: data.description,
-            count: 15,
+            count: GENERATION_COUNT,
             style: "creative",
             tlds: data.tlds.map((t) => t.replace(/^\./, "")), // strip leading dot for API
           }),
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.message || "Failed to trigger domain generation");
+          throw await apiError(res, "Failed to trigger domain generation");
         }
 
         const jobResponse = await res.json();
@@ -129,7 +138,7 @@ export default function Page() {
         fetchProfile();
 
         // Establish the first SSE listener for LLM suggestions
-        setStreamStatusMessage("Generating creative ideas with Gemini LLM...");
+        setStreamStatusMessage("Generating name ideas with AI...");
         const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
         const genSource = new EventSource(`${BACKEND_URL}${sseUrl}${tokenParam}`);
         genSseRef.current = genSource;
@@ -226,12 +235,17 @@ export default function Page() {
         });
       } catch (err: any) {
         console.error("Generation failed:", err);
-        alert(err.message || "Something went wrong starting domain generation");
+        if (err instanceof InsufficientCreditsError) {
+          setHasSearched(false);
+          setCreditsOpen(true);
+        } else {
+          alert(err.message || "Something went wrong starting domain generation");
+        }
         setIsLoading(false);
         setStreamStatusMessage(null);
       }
     },
-    [isAuthenticated, token, fetchProfile, fetchSavedSearches]
+    [isAuthenticated, token, fetchProfile, fetchSavedSearches, setCreditsOpen]
   );
 
   // 3. Handle Domain Availability Checker Flow (Bulk Async SSE)
@@ -287,8 +301,7 @@ export default function Page() {
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.message || "Failed to trigger domain checks");
+          throw await apiError(res, "Failed to trigger domain checks");
         }
 
         const { batchId, sseUrl } = await res.json();
@@ -341,12 +354,17 @@ export default function Page() {
         });
       } catch (err: any) {
         console.error("Domain check failed:", err);
-        alert(err.message || "Failed to initiate domain check");
+        if (err instanceof InsufficientCreditsError) {
+          setHasSearched(false);
+          setCreditsOpen(true);
+        } else {
+          alert(err.message || "Failed to initiate domain check");
+        }
         setIsLoading(false);
         setStreamStatusMessage(null);
       }
     },
-    [isAuthenticated, token, fetchProfile]
+    [isAuthenticated, token, fetchProfile, setCreditsOpen]
   );
 
   const handleTabChange = (tab: "generate" | "check") => {

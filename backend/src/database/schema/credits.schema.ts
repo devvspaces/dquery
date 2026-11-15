@@ -5,43 +5,61 @@ import {
   timestamp,
   varchar,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
 
-export const credits = pgTable('credits', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  balance: decimal('balance', { precision: 10, scale: 2 })
-    .notNull()
-    .default('0'),
-  totalPurchased: decimal('total_purchased', { precision: 10, scale: 2 })
-    .notNull()
-    .default('0'),
-  totalUsed: decimal('total_used', { precision: 10, scale: 2 })
-    .notNull()
-    .default('0'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export const credits = pgTable(
+  'credits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    balance: decimal('balance', { precision: 10, scale: 2 })
+      .notNull()
+      .default('0'),
+    totalPurchased: decimal('total_purchased', { precision: 10, scale: 2 })
+      .notNull()
+      .default('0'),
+    totalUsed: decimal('total_used', { precision: 10, scale: 2 })
+      .notNull()
+      .default('0'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('credits_user_id_unique').on(t.userId)],
+);
 
-export const creditTransactions = pgTable('credit_transactions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
-  type: varchar('type', { length: 50 }).notNull(), // 'purchase', 'deduction', 'refund', 'bonus'
-  description: text('description').notNull(),
-  balanceBefore: decimal('balance_before', {
-    precision: 10,
-    scale: 2,
-  }).notNull(),
-  balanceAfter: decimal('balance_after', { precision: 10, scale: 2 }).notNull(),
-  metadata: text('metadata'), // JSON string for additional data
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export const creditTransactions = pgTable(
+  'credit_transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+    type: varchar('type', { length: 50 }).notNull(), // 'purchase', 'deduction', 'refund', 'bonus'
+    description: text('description').notNull(),
+    balanceBefore: decimal('balance_before', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    balanceAfter: decimal('balance_after', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    metadata: text('metadata'), // JSON string for additional data
+    /** Set for operations that must happen once (refunds, purchases, grants). */
+    idempotencyKey: varchar('idempotency_key', { length: 191 }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('credit_transactions_idempotency_key_unique').on(
+      t.idempotencyKey,
+    ),
+  ],
+);
 
 export type Credit = typeof credits.$inferSelect;
 export type NewCredit = typeof credits.$inferInsert;

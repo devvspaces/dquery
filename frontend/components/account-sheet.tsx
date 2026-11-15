@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCredits } from "@/lib/pricing";
+
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -116,7 +118,7 @@ export function AccountSheet({ open, onOpenChange, onBuyCredits }: AccountSheetP
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Credits</p>
-                <p className="text-sm font-bold text-foreground">{user.credits?.toFixed(1) ?? "0.0"}</p>
+                <p className="text-sm font-bold text-foreground">{formatCredits(user.credits)}</p>
               </div>
             </div>
             <button

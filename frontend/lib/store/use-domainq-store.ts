@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { API_BASE_URL } from "@/lib/config";
+import type { CreditPricing, CreditPromo } from "@/lib/pricing";
 
 export interface UserProfile {
   id: string;
@@ -42,6 +43,12 @@ interface DomainQState {
   bookmarks: BookmarkedDomain[];
   savedSearches: SavedSearchRecord[];
 
+  // Public pricing info (no auth needed)
+  pricing: CreditPricing | null;
+  promo: CreditPromo | null;
+  fetchPricing: () => Promise<void>;
+  fetchPromo: () => Promise<void>;
+
   // Action methods
   setAuthOpen: (open: boolean) => void;
   setCreditsOpen: (open: boolean) => void;
@@ -72,6 +79,27 @@ export const useDomainQStore = create<DomainQState>((set, get) => ({
   
   bookmarks: [],
   savedSearches: [],
+
+  pricing: null,
+  promo: null,
+
+  fetchPricing: async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/credits/pricing`);
+      if (res.ok) set({ pricing: (await res.json()) as CreditPricing });
+    } catch (err) {
+      console.error("Failed to load credit pricing:", err);
+    }
+  },
+
+  fetchPromo: async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/credits/promo`);
+      if (res.ok) set({ promo: (await res.json()) as CreditPromo });
+    } catch (err) {
+      console.error("Failed to load sign-up promo:", err);
+    }
+  },
 
   setAuthOpen: (open) => set({ authOpen: open }),
   setCreditsOpen: (open) => set({ creditsOpen: open }),

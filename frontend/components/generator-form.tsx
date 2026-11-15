@@ -5,6 +5,9 @@ import React from "react"
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TldSelector, DEFAULT_SELECTED } from "@/components/tld-selector";
+import { CostNote } from "@/components/cost-note";
+import { estimateGeneration } from "@/lib/pricing";
+import { GENERATION_COUNT, MAX_TLDS } from "@/lib/search-defaults";
 
 interface GeneratorFormProps {
   onGenerate: (data: {
@@ -32,7 +35,9 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
     onGenerate({ businessName: businessName.trim(), description: description.trim(), tlds: selectedTlds });
   };
 
-  const isValid = businessName.trim().length > 0 && selectedTlds.length > 0;
+  const tooManyTlds = selectedTlds.length > MAX_TLDS;
+  const isValid =
+    businessName.trim().length > 0 && selectedTlds.length > 0 && !tooManyTlds;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -116,6 +121,20 @@ export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
           </span>
         )}
       </Button>
+      {tooManyTlds ? (
+        <p className="text-center text-xs text-destructive">
+          Pick at most {MAX_TLDS} extensions.
+        </p>
+      ) : (
+        <CostNote
+          cost={(p) =>
+            selectedTlds.length
+              ? estimateGeneration(p, "ai", GENERATION_COUNT, selectedTlds.length)
+              : null
+          }
+          detail={`${GENERATION_COUNT} names × ${selectedTlds.length} extension${selectedTlds.length === 1 ? "" : "s"}`}
+        />
+      )}
     </form>
   );
 }

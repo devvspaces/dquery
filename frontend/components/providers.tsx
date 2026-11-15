@@ -22,10 +22,12 @@ export function Providers({ children }: ProvidersProps) {
   );
 
   const initializeAuth = useDomainQStore((state) => state.initializeAuth);
+  const fetchPricing = useDomainQStore((state) => state.fetchPricing);
 
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+    fetchPricing();
+  }, [initializeAuth, fetchPricing]);
 
   return (
     <QueryClientProvider client={queryClient}>

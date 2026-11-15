@@ -2,31 +2,45 @@ import type {
   AvailabilityStatus,
   PriceSource,
 } from '../interfaces/registrar-provider.interface';
-import { IsString, IsNotEmpty, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  ValidateNested,
+  MaxLength,
+  ArrayMinSize,
+  ArrayMaxSize,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CheckDomainDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(63)
   domain: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(24)
   tld: string;
 }
 
 export class DomainTldPair {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(63)
   domain: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(24)
   tld: string;
 }
 
 export class BulkCheckDomainsDto {
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => DomainTldPair)
   domains: DomainTldPair[];

@@ -1,10 +1,11 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
 import { LLMService } from '../../modules/llm/llm.service';
 import { CreditsService } from '../../modules/credits/credits.service';
+import { CreditPricingService } from '../../modules/credits/credit-pricing.service';
+import { isFinalAttempt } from '../utils/attempts';
 import { DomainCheckingProducer } from '../producers/domain-checking.producer';
 import { QUEUE_NAMES } from '../constants/queue-names';
 import {
@@ -29,7 +30,7 @@ export class DomainGenerationProcessor extends WorkerHost {
     private readonly creditsService: CreditsService,
     private readonly checkingProducer: DomainCheckingProducer,
     private readonly databaseService: DatabaseService,
-    private readonly configService: ConfigService,
+    private readonly pricing: CreditPricingService,
   ) {
     super();
   }
@@ -41,6 +42,9 @@ export class DomainGenerationProcessor extends WorkerHost {
     this.logger.log(
       `Processing generation job ${job.id} for user ${job.data.userId}`,
     );
+
+    // Once checking jobs exist they refund their own share if they fail.
+    let checkingQueued = false;
 
     try {
       // Update job status to active
@@ -78,16 +82,7 @@ export class DomainGenerationProcessor extends WorkerHost {
 
       const searchHistoryId = searchHistoryRecord.id;
 
-      // Calculate credits for domain checking
       const tlds = job.data.tlds;
-      const enabledRegistrars =
-        this.configService
-          .get<string>('ENABLED_REGISTRARS')
-          ?.split(',')
-          .filter((r) => r.trim()).length || 4;
-
-      const creditPerCheck =
-        this.configService.get<number>('credits.perRegistrarQuery') || 0.05;
 
       // Flatten domain + TLD combinations
       const domainTldPairs: Array<{ domain: string; tld: string }> = [];
@@ -108,7 +103,8 @@ export class DomainGenerationProcessor extends WorkerHost {
       const checkingJobPromises: Promise<string>[] = [];
 
       for (const batch of batches) {
-        const batchCredits = batch.length * enabledRegistrars * creditPerCheck;
+        // Bookkeeping only: the whole search was charged up front.
+        const batchCredits = this.pricing.quoteChecks(batch.length).total;
 
         checkingJobPromises.push(
           this.checkingProducer.addJob({
@@ -122,6 +118,7 @@ export class DomainGenerationProcessor extends WorkerHost {
       }
 
       const checkingJobIds = await Promise.all(checkingJobPromises);
+      checkingQueued = true;
 
       this.logger.log(
         `Created ${checkingJobIds.length} bulk checking jobs (total ${domainTldPairs.length} checks) for generation job ${job.id}`,
@@ -166,22 +163,25 @@ export class DomainGenerationProcessor extends WorkerHost {
         })
         .where(eq(jobQueueLogs.jobId, job.id as string));
 
-      // Refund credits
-      await this.creditsService.addCredits(
-        job.data.userId,
-        job.data.creditsDeducted,
-        'refund',
-        `Generation job ${job.id} failed: ${errorMessage}`,
-        { jobId: job.id },
-      );
+      // Refund once, and only when no retry is left.
+      if (isFinalAttempt(job)) {
+        const refund = checkingQueued
+          ? this.pricing.quoteGeneration('ai', 0, 0).generation
+          : job.data.creditsDeducted;
+        await this.creditsService.addCredits(
+          job.data.userId,
+          refund,
+          'refund',
+          `Generation job ${job.id} failed: ${errorMessage}`,
+          { jobId: job.id },
+          { idempotencyKey: `refund:generation:${job.id}` },
+        );
 
-      // Update refund in logs
-      await db
-        .update(jobQueueLogs)
-        .set({
-          creditsRefunded: job.data.creditsDeducted.toString(),
-        })
-        .where(eq(jobQueueLogs.jobId, job.id as string));
+        await db
+          .update(jobQueueLogs)
+          .set({ creditsRefunded: refund.toString() })
+          .where(eq(jobQueueLogs.jobId, job.id as string));
+      }
 
       throw error;
     }

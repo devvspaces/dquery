@@ -3,6 +3,9 @@
 import React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { CostNote } from "@/components/cost-note";
+import { estimateChecks } from "@/lib/pricing";
+import { checkerDomainCount } from "@/lib/search-defaults";
 
 interface CheckerFormProps {
   onCheck: (domain: string) => void;
@@ -67,6 +70,16 @@ export function CheckerForm({ onCheck, isLoading }: CheckerFormProps) {
           "Check availability"
         )}
       </Button>
+      {isValid && (
+        <CostNote
+          cost={(p) => estimateChecks(p, checkerDomainCount(domain.trim()))}
+          detail={
+            checkerDomainCount(domain.trim()) === 1
+              ? "1 domain"
+              : `${checkerDomainCount(domain.trim())} extensions`
+          }
+        />
+      )}
     </form>
   );
 }

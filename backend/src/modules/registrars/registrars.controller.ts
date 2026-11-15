@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Query, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
+import { AdminGuard } from '../../common/guards/admin.guard';
 import { RegistrarsService } from './registrars.service';
 import {
   CheckDomainDto,
@@ -37,9 +46,11 @@ export class RegistrarsController {
   constructor(private readonly registrarsService: RegistrarsService) {}
 
   /**
-   * Check domain availability across all registrars
+   * Check domain availability across all registrars (admin/debug; uncharged).
+   * Users go through the charged /api/domains/check* routes.
    * POST /api/registrars/check
    */
+  @UseGuards(AdminGuard)
   @Post('check')
   async checkDomain(
     @Body() dto: CheckDomainDto,
@@ -55,9 +66,10 @@ export class RegistrarsController {
   }
 
   /**
-   * Check multiple domains
+   * Check multiple domains (admin/debug; uncharged)
    * POST /api/registrars/check/bulk
    */
+  @UseGuards(AdminGuard)
   @Post('check/bulk')
   async checkDomainsBulk(
     @Body() dto: BulkCheckDomainsDto,
@@ -102,8 +114,9 @@ export class RegistrarsController {
 
   /**
    * Get best price for a domain
-   * GET /api/registrars/best-price?domain=example&tld=com
+   * GET /api/registrars/best-price?domain=example&tld=com (admin/debug; uncharged)
    */
+  @UseGuards(AdminGuard)
   @Get('best-price')
   async getBestPrice(
     @Query('domain') domain: string,

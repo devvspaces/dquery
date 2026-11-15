@@ -60,8 +60,11 @@ export class DomainsController {
    * GET /api/domains/jobs/:jobId
    */
   @Get('jobs/:jobId')
-  async getJobStatus(@Param('jobId') jobId: string): Promise<JobStatusDto> {
-    return this.domainsService.getJobStatus(jobId);
+  async getJobStatus(
+    @Param('jobId') jobId: string,
+    @CurrentUser() user: User,
+  ): Promise<JobStatusDto> {
+    return this.domainsService.getJobStatus(jobId, user.id);
   }
 
   /**
@@ -69,14 +72,17 @@ export class DomainsController {
    * GET /api/domains/jobs/:jobId/stream
    */
   @Sse('jobs/:jobId/stream')
-  streamJobUpdates(@Param('jobId') jobId: string): Observable<MessageEvent> {
+  streamJobUpdates(
+    @Param('jobId') jobId: string,
+    @CurrentUser() user: User,
+  ): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
       let lastStatus: string | null = null;
 
       // eslint-disable-next-line @typescript-eslint/no-misused-promises -- errors are caught inside
       const pollInterval = setInterval(async () => {
         try {
-          const status = await this.domainsService.getJobStatus(jobId);
+          const status = await this.domainsService.getJobStatus(jobId, user.id);
 
           // Emit if status changes, or if it is the final status
           if (
@@ -126,8 +132,9 @@ export class DomainsController {
   @Get('batch/:batchId')
   async getBatchStatus(
     @Param('batchId') batchId: string,
+    @CurrentUser() user: User,
   ): Promise<BatchStatusDto> {
-    return this.domainsService.getBatchStatus(batchId);
+    return this.domainsService.getBatchStatus(batchId, user.id);
   }
 
   /**
@@ -137,12 +144,16 @@ export class DomainsController {
   @Sse('batch/:batchId/stream')
   streamBatchUpdates(
     @Param('batchId') batchId: string,
+    @CurrentUser() user: User,
   ): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises -- errors are caught inside
       const pollInterval = setInterval(async () => {
         try {
-          const status = await this.domainsService.getBatchStatus(batchId);
+          const status = await this.domainsService.getBatchStatus(
+            batchId,
+            user.id,
+          );
 
           subscriber.next({
             type: 'batch:update',

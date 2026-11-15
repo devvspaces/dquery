@@ -65,25 +65,21 @@ export class DomainGenerationProducer {
     return job.id as string;
   }
 
+  /** Returns null when the job doesn't exist (or has been cleaned up). */
   async getJobStatus(jobId: string): Promise<{
     status: string;
+    userId: string;
     result?: DomainGenerationJobResult;
     error?: string;
-  }> {
+  } | null> {
     const job = await this.generationQueue.getJob(jobId);
-
-    if (!job) {
-      throw new Error(`Job ${jobId} not found`);
-    }
-
-    const state = await job.getState();
-    const result = job.returnvalue;
-    const error = job.failedReason;
+    if (!job) return null;
 
     return {
-      status: state,
-      result,
-      error,
+      status: await job.getState(),
+      userId: job.data.userId,
+      result: job.returnvalue,
+      error: job.failedReason,
     };
   }
 }

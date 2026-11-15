@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCredits } from "@/lib/pricing";
+
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -120,7 +122,7 @@ export function Header({
                   <path d="M15.5 9.4a4 4 0 0 0-7 0" />
                   <path d="M8.5 14.6a4 4 0 0 0 7 0" />
                 </svg>
-                <span className="font-semibold">{user.credits}</span>
+                <span className="font-semibold">{formatCredits(user.credits)}</span>
                 <span className="text-muted-foreground">credits</span>
               </button>
 

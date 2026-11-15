@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { CreditsService } from '../credits/credits.service';
+import { CreditPricingService } from '../credits/credit-pricing.service';
 import { DomainGenerationProducer } from '../../queues/producers/domain-generation.producer';
 import { DomainCheckingProducer } from '../../queues/producers/domain-checking.producer';
 import { GenerateDomainsDto } from './dto/generate-domains.dto';
@@ -22,7 +23,7 @@ export class DomainsService {
     private readonly creditsService: CreditsService,
     private readonly generationProducer: DomainGenerationProducer,
     private readonly checkingProducer: DomainCheckingProducer,
-    private readonly configService: ConfigService,
+    private readonly pricing: CreditPricingService,
     private readonly databaseService: DatabaseService,
   ) {}
 
@@ -33,27 +34,15 @@ export class DomainsService {
     dto: GenerateDomainsDto,
     userId: string,
   ): Promise<{ jobId: string; creditsDeducted: number }> {
-    // Calculate total credits needed
-    const generationCredits =
-      this.configService.get<number>('credits.perGeneration') || 2;
-
-    const enabledRegistrars =
-      this.configService
-        .get<string>('ENABLED_REGISTRARS')
-        ?.split(',')
-        .filter((r) => r.trim()).length || 4;
-
-    const creditPerCheck =
-      this.configService.get<number>('credits.perRegistrarQuery') || 0.05;
-
-    // Total checking credits: domains × TLDs × registrars × credit per check
-    const checkingCredits =
-      dto.count * dto.tlds.length * enabledRegistrars * creditPerCheck;
-
-    const totalCredits = generationCredits + checkingCredits;
+    const quote = this.pricing.quoteGeneration(
+      'ai',
+      dto.count,
+      dto.tlds.length,
+    );
+    const totalCredits = quote.total;
 
     this.logger.log(
-      `Credit calculation: Generation=${generationCredits}, Checking=${checkingCredits.toFixed(2)}, Total=${totalCredits.toFixed(2)}`,
+      `Credit calculation: generation=${quote.generation}, checking=${quote.checking} (${quote.checks} checks), total=${totalCredits}`,
     );
 
     // Check if user has sufficient credits
@@ -97,37 +86,38 @@ export class DomainsService {
   }
 
   /**
-   * Get job status
+   * Get job status. Jobs belonging to another user are reported as not found.
    */
-  async getJobStatus(jobId: string): Promise<JobStatusDto> {
-    // Try generation queue first
-    try {
-      const genStatus = await this.generationProducer.getJobStatus(jobId);
-      return {
-        jobId,
-        status: genStatus.status as any,
-        result: genStatus.result,
-        error: genStatus.error,
-        createdAt: new Date(), // We'll enhance this with DB lookup if needed
-      };
-    } catch {
-      // Try checking queue
-      const checkStatus = await this.checkingProducer.getJobStatus(jobId);
-      return {
-        jobId,
-        status: checkStatus.status as any,
-        result: checkStatus.result,
-        error: checkStatus.error,
-        createdAt: new Date(),
-      };
+  async getJobStatus(jobId: string, userId: string): Promise<JobStatusDto> {
+    const status =
+      (await this.generationProducer.getJobStatus(jobId)) ??
+      (await this.checkingProducer.getJobStatus(jobId));
+
+    if (!status || status.userId !== userId) {
+      throw new NotFoundException(`Job ${jobId} not found`);
     }
+
+    return {
+      jobId,
+      status: status.status as JobStatusDto['status'],
+      result: status.result,
+      error: status.error,
+      createdAt: new Date(),
+    };
   }
 
   /**
    * Get batch status
    */
-  async getBatchStatus(batchId: string): Promise<BatchStatusDto> {
-    const batchStatus = await this.checkingProducer.getBatchStatus(batchId);
+  async getBatchStatus(
+    batchId: string,
+    userId: string,
+  ): Promise<BatchStatusDto> {
+    // Only this user's jobs are counted, so another user's batch reads as empty.
+    const batchStatus = await this.checkingProducer.getBatchStatus(
+      batchId,
+      userId,
+    );
 
     const progress =
       batchStatus.total > 0
@@ -151,16 +141,7 @@ export class DomainsService {
     dto: CheckDomainDto,
     userId: string,
   ): Promise<{ jobId: string; creditsDeducted: number }> {
-    const enabledRegistrars =
-      this.configService
-        .get<string>('ENABLED_REGISTRARS')
-        ?.split(',')
-        .filter((r) => r.trim()).length || 4;
-
-    const creditPerCheck =
-      this.configService.get<number>('credits.perRegistrarQuery') || 0.05;
-
-    const totalCredits = enabledRegistrars * creditPerCheck;
+    const totalCredits = this.pricing.quoteChecks(1).total;
 
     const balance = await this.creditsService.getBalance(userId);
     if (balance.balance < totalCredits) {
@@ -194,17 +175,7 @@ export class DomainsService {
     dto: BulkCheckDomainsDto,
     userId: string,
   ): Promise<{ batchId: string; creditsDeducted: number }> {
-    const enabledRegistrars =
-      this.configService
-        .get<string>('ENABLED_REGISTRARS')
-        ?.split(',')
-        .filter((r) => r.trim()).length || 4;
-
-    const creditPerCheck =
-      this.configService.get<number>('credits.perRegistrarQuery') || 0.05;
-
-    const totalCredits =
-      dto.domains.length * enabledRegistrars * creditPerCheck;
+    const totalCredits = this.pricing.quoteChecks(dto.domains.length).total;
 
     const balance = await this.creditsService.getBalance(userId);
     if (balance.balance < totalCredits) {
@@ -218,7 +189,7 @@ export class DomainsService {
       { count: dto.domains.length },
     );
 
-    const batchId = `batch-${Date.now()}`;
+    const batchId = `batch-${randomUUID()}`;
 
     // Chunk domains into batches of 20 to leverage our bulk APIs
     const chunkSize = 20;
@@ -229,7 +200,7 @@ export class DomainsService {
 
     // Add job for each batch
     for (const batch of batches) {
-      const batchCredits = batch.length * enabledRegistrars * creditPerCheck;
+      const batchCredits = this.pricing.quoteChecks(batch.length).total;
 
       await this.checkingProducer.addJob({
         userId,

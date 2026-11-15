@@ -13,10 +13,18 @@ import {
 } from '../../common/dto/pagination.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { User } from '../../database/schema';
+import { Public } from '../../common/decorators/public.decorator';
+import {
+  CreditPricingService,
+  type CreditPricing,
+} from './credit-pricing.service';
 
 @Controller('credits')
 export class CreditsController {
-  constructor(private readonly creditsService: CreditsService) {}
+  constructor(
+    private readonly creditsService: CreditsService,
+    private readonly pricingService: CreditPricingService,
+  ) {}
 
   /**
    * Get current credit balance
@@ -67,16 +75,30 @@ export class CreditsController {
   /**
    * Estimate credit cost for an operation
    * POST /api/credits/estimate
-   * Body: { operation: 'generation' | 'check' | 'batch', domains?: number, registrars?: number }
+   * Body: { operation: 'generation' | 'check', engine?: 'ai' | 'words', names?: number, tlds?: number }
    */
   @Post('estimate')
-  async estimateCost(
-    @Body() dto: CreditEstimateRequestDto,
-  ): Promise<CreditEstimateDto> {
-    return this.creditsService.estimateCost(
-      dto.operation,
-      dto.domains,
-      dto.registrars,
-    );
+  estimateCost(@Body() dto: CreditEstimateRequestDto): CreditEstimateDto {
+    return this.creditsService.estimateCost(dto);
+  }
+
+  /**
+   * Current credit prices, for showing costs before a search.
+   * GET /api/credits/pricing
+   */
+  @Public()
+  @Get('pricing')
+  getPricing(): CreditPricing {
+    return this.pricingService.pricing();
+  }
+
+  /**
+   * Sign-up promo: early-user grant and spots remaining.
+   * GET /api/credits/promo
+   */
+  @Public()
+  @Get('promo')
+  getPromo() {
+    return this.creditsService.getPromo();
   }
 }

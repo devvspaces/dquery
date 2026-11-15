@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { LogoMark } from "@/components/logo";
 import { API_BASE_URL } from "@/lib/config";
+import { useDomainQStore } from "@/lib/store/use-domainq-store";
 
 interface AuthDialogProps {
   open: boolean;
@@ -73,6 +74,12 @@ const providers = [
 
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [signingIn, setSigningIn] = useState<string | null>(null);
+  const promo = useDomainQStore((s) => s.promo);
+  const fetchPromo = useDomainQStore((s) => s.fetchPromo);
+
+  useEffect(() => {
+    if (open) fetchPromo();
+  }, [open, fetchPromo]);
 
   const handleSignIn = (provider: "google" | "facebook" | "twitter" | "github") => {
     if (provider !== "github") return;
@@ -95,12 +102,19 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             <DialogDescription className="text-sm text-muted-foreground">
               Create an account to save searches, bookmark domains, and buy credits.
             </DialogDescription>
+            {promo && (
+              <p className="mt-2 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                {promo.earlyRemaining > 0
+                  ? `Early access: ${promo.earlyAmount} free credits for the first ${promo.earlyLimit} users (${promo.earlyRemaining} left)`
+                  : `${promo.defaultAmount} free credits when you sign up`}
+              </p>
+            )}
           </DialogHeader>
         </div>
 
         {/* Providers */}
         <div className="px-6 pb-6 space-y-2">
-          {providers.map((provider) => {
+          {providers.filter((p) => !p.disabled).map((provider) => {
             const isLoading = signingIn === provider.id;
             const isDisabled = provider.disabled;
 

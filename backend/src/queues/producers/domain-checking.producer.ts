@@ -86,29 +86,28 @@ export class DomainCheckingProducer {
     return { jobIds, batchId };
   }
 
+  /** Returns null when the job doesn't exist (or has been cleaned up). */
   async getJobStatus(jobId: string): Promise<{
     status: string;
+    userId: string;
     result?: DomainCheckingJobResult;
     error?: string;
-  }> {
+  } | null> {
     const job = await this.checkingQueue.getJob(jobId);
-
-    if (!job) {
-      throw new Error(`Job ${jobId} not found`);
-    }
-
-    const state = await job.getState();
-    const result = job.returnvalue;
-    const error = job.failedReason;
+    if (!job) return null;
 
     return {
-      status: state,
-      result,
-      error,
+      status: await job.getState(),
+      userId: job.data.userId,
+      result: job.returnvalue,
+      error: job.failedReason,
     };
   }
 
-  async getBatchStatus(batchId: string): Promise<{
+  async getBatchStatus(
+    batchId: string,
+    userId: string,
+  ): Promise<{
     total: number;
     completed: number;
     failed: number;
@@ -123,7 +122,9 @@ export class DomainCheckingProducer {
       'waiting',
     ]);
 
-    const batchJobs = jobs.filter((job) => job.data.parentJobId === batchId);
+    const batchJobs = jobs.filter(
+      (job) => job.data.parentJobId === batchId && job.data.userId === userId,
+    );
 
     const completedJobs = batchJobs.filter(
       (job) => job.finishedOn !== undefined && job.failedReason === undefined,
