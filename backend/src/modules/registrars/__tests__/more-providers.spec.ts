@@ -8,7 +8,12 @@ import { DynadotProvider } from '../providers/dynadot.provider';
 import { HostingerProvider } from '../providers/hostinger.provider';
 import { PorkbunProvider } from '../providers/porkbun.provider';
 import { FxRatesService } from '../fx-rates.service';
-import { toUsd, type CatalogPrice } from '../tld-prices.service';
+import {
+  isPlausibleCatalogPrice,
+  isPlausibleQuote,
+  toUsd,
+  type CatalogPrice,
+} from '../tld-prices.service';
 import { buildOffers } from '../aggregation';
 
 const fixture = (name: string) =>
@@ -40,6 +45,17 @@ describe('WhmcsFeedProvider', () => {
     );
     expect(WhmcsFeedProvider.parseFeed("document.write('');")).toBeUndefined();
     expect(() => WhmcsFeedProvider.parseFeed('<html>')).toThrow();
+  });
+  it('treats -1.00 and 0.00 as "not sold" and strips currency formatting', () => {
+    expect(
+      WhmcsFeedProvider.parseFeed("document.write('-1.00');"),
+    ).toBeUndefined();
+    expect(
+      WhmcsFeedProvider.parseFeed("document.write('0.00');"),
+    ).toBeUndefined();
+    expect(WhmcsFeedProvider.parseFeed("document.write('₦14,999.00');")).toBe(
+      14999,
+    );
   });
   it('builds the built-in family plus REGISTRARS_WHMCS extras', () => {
     const providers = WhmcsFeedProvider.fromEnv({
@@ -245,5 +261,59 @@ describe('purchase links', () => {
       'https://aff.test/?d=acme.com&ref=dq',
     );
     delete process.env.REGISTRAR_LINK_PORKBUN;
+  });
+});
+
+describe('price sanity guards', () => {
+  const quote = (registerPrice: number, renewalPrice = registerPrice) => ({
+    registrar: 'x',
+    tld: 'ai',
+    currency: 'NGN',
+    registerPrice,
+    renewalPrice,
+    isPromo: false,
+    source: 'catalog-api' as const,
+  });
+  const catalog = (
+    registerPrice: number,
+    currency = 'USD',
+    source: 'catalog-api' | 'manual' = 'catalog-api',
+  ) => ({
+    registrar: 'x',
+    tld: 'ai',
+    registerPrice,
+    renewalPrice: registerPrice,
+    isPromo: false,
+    currency,
+    source,
+    updatedAt: new Date().toISOString(),
+    stale: false,
+  });
+
+  it('drops zero, negative and NaN quotes at sync', () => {
+    expect(isPlausibleQuote(quote(14999))).toBe(true);
+    expect(isPlausibleQuote(quote(0))).toBe(false);
+    expect(isPlausibleQuote(quote(-1))).toBe(false);
+    expect(isPlausibleQuote(quote(10, 0))).toBe(false);
+    expect(isPlausibleQuote(quote(NaN))).toBe(false);
+  });
+
+  it('hides converted prices that round to nothing, but trusts manual ones', () => {
+    const toUsdFrom = (rate: number) => (amount: number, cur: string) =>
+      cur === 'NGN' ? amount * rate : undefined;
+    // 1 NGN (the old "-1.00" bug) → ~$0.0007: hidden.
+    expect(
+      isPlausibleCatalogPrice(toUsd(catalog(1, 'NGN'), toUsdFrom(1 / 1500))),
+    ).toBe(false);
+    // A real NGN price converts and stays.
+    expect(
+      isPlausibleCatalogPrice(
+        toUsd(catalog(14999, 'NGN'), toUsdFrom(1 / 1500)),
+      ),
+    ).toBe(true);
+    expect(isPlausibleCatalogPrice(catalog(0))).toBe(false);
+    expect(isPlausibleCatalogPrice(catalog(0.05))).toBe(false);
+    expect(isPlausibleCatalogPrice(catalog(0.99))).toBe(true);
+    expect(isPlausibleCatalogPrice(catalog(0.05, 'USD', 'manual'))).toBe(true);
   });
 });

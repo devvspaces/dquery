@@ -152,11 +152,15 @@ export class WhmcsFeedProvider
     return WhmcsFeedProvider.parseFeed(response.data);
   }
 
-  /** `document.write('14999.00');` → 14999; `document.write('');` → undefined. */
+  /**
+   * `document.write('14999.00');` → 14999. Empty, zero or negative answers
+   * (WHMCS writes `-1.00` for a TLD it doesn't sell) → undefined.
+   */
   static parseFeed(body: string): number | undefined {
     const m = /document\.write\('([^']*)'\)/.exec(body ?? '');
     if (!m) throw new Error('unexpected feed response');
-    const value = parseFloat(m[1].replace(/[^0-9.]/g, ''));
+    // Keep the sign: stripping "-" would turn "-1.00" (not sold) into 1.
+    const value = parseFloat(m[1].replace(/[^0-9.-]/g, ''));
     return Number.isFinite(value) && value > 0 ? value : undefined;
   }
 }

@@ -63,6 +63,29 @@ export function toUsd(
   };
 }
 
+/** No real registration costs less than this; anything cheaper is a bad feed value. */
+export const MIN_PLAUSIBLE_USD = 0.1;
+
+/** A quote a provider sent that can't be a real price (zero, negative, NaN). */
+export function isPlausibleQuote(q: TldPriceQuote): boolean {
+  return (
+    Number.isFinite(q.registerPrice) &&
+    q.registerPrice > 0 &&
+    Number.isFinite(q.renewalPrice) &&
+    q.renewalPrice > 0
+  );
+}
+
+/**
+ * Read-time guard so a bad catalog row can never become the headline price.
+ * Manual prices are trusted; prices we couldn't convert only need to be > 0.
+ */
+export function isPlausibleCatalogPrice(p: CatalogPrice): boolean {
+  if (p.source === 'manual') return true;
+  if (!(p.registerPrice > 0)) return false;
+  return p.currency !== 'USD' || p.registerPrice >= MIN_PLAUSIBLE_USD;
+}
+
 export interface SyncReport {
   registrar: string;
   ok: boolean;
@@ -108,7 +131,17 @@ export class TldPricesService {
       const startedAt = new Date();
       let report: SyncReport;
       try {
-        const quotes = await source.fetchTldPrices();
+        const fetched = await source.fetchTldPrices();
+        const quotes = fetched.filter(isPlausibleQuote);
+        if (quotes.length < fetched.length) {
+          const bad = fetched.filter((q) => !isPlausibleQuote(q));
+          this.logger.warn(
+            `${source.getProviderName()}: skipped ${bad.length} implausible price(s): ${bad
+              .slice(0, 10)
+              .map((q) => `.${q.tld}=${q.registerPrice}`)
+              .join(', ')}`,
+          );
+        }
         if (quotes.length === 0) throw new Error('provider returned no prices');
         const count = await this.upsertQuotes(quotes);
         this.logger.log(
@@ -297,7 +330,7 @@ export class TldPricesService {
     for (const [tld, prices] of result) {
       result.set(
         tld,
-        prices.map((p) => toUsd(p, convert)),
+        prices.map((p) => toUsd(p, convert)).filter(isPlausibleCatalogPrice),
       );
     }
     return result;
