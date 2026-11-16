@@ -19,6 +19,7 @@ import { buildCheckPairs, GENERATION_COUNT, type DomainPair } from "@/lib/search
 import { DEFAULT_SELECTED } from "@/components/tld-selector";
 import { NameReview, type ReviewState } from "@/components/name-review";
 import { InsufficientCreditsError } from "@/lib/pricing";
+import { useUrlTab, type Tab } from "@/lib/url-tab";
 
 /** Turn a failed API response into an Error; 402 becomes InsufficientCreditsError. */
 async function apiError(res: Response, fallback: string): Promise<Error> {
@@ -32,7 +33,6 @@ async function apiError(res: Response, fallback: string): Promise<Error> {
 const BACKEND_URL = API_BASE_URL;
 
 export default function Page() {
-  const [activeTab, setActiveTab] = useState<"generate" | "check">("generate");
   const [results, setResults] = useState<DomainResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -54,6 +54,9 @@ export default function Page() {
     fetchProfile,
     fetchSavedSearches,
   } = useDomainQStore();
+
+  /** Back/Forward between tabs: drop the old tab's results like a click would. */
+  const [activeTab, setActiveTab] = useUrlTab(() => resetView());
 
   // Keep references to active EventSources to close them on unmount
   const genSseRef = useRef<EventSource | null>(null);
@@ -274,14 +277,19 @@ export default function Page() {
     [runChecks]
   );
 
-  const handleTabChange = (tab: "generate" | "check") => {
+  function resetView() {
     cleanupSse();
-    setActiveTab(tab);
     setResults([]);
     setReview(null);
     setHasSearched(false);
     setStreamStatusMessage(null);
     setIsLoading(false);
+  }
+
+  const handleTabChange = (tab: Tab) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    resetView();
   };
 
   return (
