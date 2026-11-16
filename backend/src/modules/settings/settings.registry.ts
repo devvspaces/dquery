@@ -95,6 +95,18 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 10,
   },
   {
+    key: 'credits.perPriceRefresh',
+    group: 'Credits',
+    type: 'number',
+    label: 'Per domain price refresh (saved search)',
+    description:
+      'Re-reads prices from the daily catalog, no registrar calls. A live availability re-check costs the normal check price.',
+    envVar: 'CREDIT_PER_PRICE_REFRESH',
+    envDefault: () => num('CREDIT_PER_PRICE_REFRESH', 0.01),
+    min: 0,
+    max: 10,
+  },
+  {
     key: 'credits.freeEarly',
     group: 'Credits',
     type: 'number',

@@ -10,6 +10,8 @@ import {
   MaxLength,
   ArrayMinSize,
   ArrayMaxSize,
+  IsOptional,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -44,6 +46,17 @@ export class BulkCheckDomainsDto {
   @ValidateNested({ each: true })
   @Type(() => DomainTldPair)
   domains: DomainTldPair[];
+
+  /** Store the results on this saved search (e.g. names reviewed from a generation). */
+  @IsOptional()
+  @IsUUID()
+  searchId?: string;
+
+  /** Title for a new saved search, e.g. the typed query. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
 }
 
 export class CheckDomainResponseDto {

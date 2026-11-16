@@ -14,7 +14,7 @@ import {
   DomainGenerationJobResult,
 } from '../interfaces/job-data.interface';
 import { jobQueueLogs, savedSearches } from '../../database/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 @Processor(QUEUE_NAMES.DOMAIN_GENERATION, {
   concurrency: 2,
@@ -35,6 +35,69 @@ export class DomainGenerationProcessor extends WorkerHost {
     private readonly pricing: CreditPricingService,
   ) {
     super();
+  }
+
+  /** Create the user's search, or append new names to an existing one. */
+  private async storeSearch(
+    data: DomainGenerationJobData,
+    result: { domains: string[]; techniques?: Record<string, string> },
+  ): Promise<string> {
+    const db = this.databaseService.getDb();
+    const now = new Date();
+    if (data.searchId) {
+      const [existing] = await db
+        .select()
+        .from(savedSearches)
+        .where(
+          and(
+            eq(savedSearches.id, data.searchId),
+            eq(savedSearches.userId, data.userId),
+          ),
+        )
+        .limit(1);
+      if (existing) {
+        const names = [...(existing.names ?? [])];
+        for (const n of result.domains) if (!names.includes(n)) names.push(n);
+        await db
+          .update(savedSearches)
+          .set({
+            names,
+            techniques: {
+              ...(existing.techniques ?? {}),
+              ...(result.techniques ?? {}),
+            },
+            resultsCount: names.length,
+            updatedAt: now,
+          })
+          .where(eq(savedSearches.id, existing.id));
+        return existing.id;
+      }
+    }
+    const [row] = await db
+      .insert(savedSearches)
+      .values({
+        userId: data.userId,
+        kind: 'generate',
+        title: data.businessName,
+        businessName: data.businessName,
+        description: data.description,
+        tlds: JSON.stringify(data.tlds),
+        input: {
+          engine: data.engine ?? 'ai',
+          businessName: data.businessName,
+          description: data.description,
+          style: data.style,
+          count: data.count,
+          wordEngine: data.wordEngine,
+        },
+        names: result.domains,
+        techniques: result.techniques ?? null,
+        resultsCount: result.domains.length,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: savedSearches.id });
+    return row.id;
   }
 
   async process(
@@ -58,22 +121,25 @@ export class DomainGenerationProcessor extends WorkerHost {
         })
         .where(eq(jobQueueLogs.jobId, job.id as string));
 
-      const generationResult = await this.generate(job.data);
+      const generated = await this.generate(job.data);
+      // "More names" must not repeat names the search already has.
+      const exclude = new Set(
+        (job.data.exclude ?? []).map((n) => n.toLowerCase()),
+      );
+      const generationResult = exclude.size
+        ? {
+            ...generated,
+            domains: generated.domains
+              .filter((d) => !exclude.has(d.toLowerCase()))
+              .slice(0, job.data.count),
+          }
+        : generated;
 
-      // Save to search history
-      const [searchHistoryRecord] = await db
-        .insert(savedSearches)
-        .values({
-          userId: job.data.userId,
-          businessName: job.data.businessName,
-          description: job.data.description,
-          tlds: JSON.stringify(job.data.tlds),
-          resultsCount: generationResult.domains.length,
-          createdAt: new Date(),
-        })
-        .returning();
-
-      const searchHistoryId = searchHistoryRecord.id;
+      // Store the search (or extend it, for "more names") so it can be reopened.
+      const searchHistoryId = await this.storeSearch(
+        job.data,
+        generationResult,
+      );
 
       const tlds = job.data.tlds;
 
@@ -192,11 +258,17 @@ export class DomainGenerationProcessor extends WorkerHost {
     model: string;
     techniques?: Record<string, string>;
   }> {
+    const exclude = data.exclude ?? [];
     if (data.engine === 'words') {
+      // Same config + same seed gives the same names, so "more names" needs a
+      // new seed and a few extra to make up for the ones already taken.
       const names = this.namegen.generate({
         seeds: [],
         ...data.wordEngine,
-        count: data.count,
+        ...(exclude.length
+          ? { seed: Math.floor(Math.random() * 2 ** 31) }
+          : {}),
+        count: Math.min(data.count + exclude.length, 200),
       });
       return {
         domains: names.map((n) => n.name),
@@ -210,7 +282,9 @@ export class DomainGenerationProcessor extends WorkerHost {
     return this.llmService.generateDomains(
       {
         businessName: data.businessName,
-        description: data.description,
+        description: exclude.length
+          ? `${data.description ?? ''}\n\nDo not suggest any of these names again: ${exclude.slice(0, 80).join(', ')}.`.trim()
+          : data.description,
         count: data.count,
         style: data.style,
       },

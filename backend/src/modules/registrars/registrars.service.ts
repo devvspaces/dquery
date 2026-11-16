@@ -89,6 +89,7 @@ export class RegistrarsService {
   async checkDomainsBulk(
     domains: DomainRef[],
     userId?: string,
+    options: { force?: boolean } = {},
   ): Promise<Map<string, DomainAvailability[]>> {
     const startTime = Date.now();
     const unique = new Map<string, DomainRef>();
@@ -100,9 +101,13 @@ export class RegistrarsService {
     const results = new Map<string, DomainAvailability[]>();
     const misses: DomainRef[] = [];
 
-    // 0. Per-domain cache
+    // 0. Per-domain cache (skipped when the user asked for a fresh check)
     await Promise.all(
       [...unique.entries()].map(async ([fqdn, ref]) => {
+        if (options.force) {
+          misses.push(ref);
+          return;
+        }
         const cached = await this.redisService
           .getJson<DomainAvailability[]>(this.cacheKey(fqdn))
           .catch(() => null);
@@ -281,6 +286,61 @@ export class RegistrarsService {
       this.providersById.get(id)?.getProviderName() ??
       id.charAt(0).toUpperCase() + id.slice(1)
     );
+  }
+
+  /**
+   * Re-price saved offers for one domain from today's catalog, without asking
+   * any registrar. Availability stays as last checked; live quotes (premium,
+   * Cloudflare at-cost) are kept as they were. Not-available domains are
+   * returned unchanged.
+   */
+  async repriceOffers(
+    domain: string,
+    tld: string,
+    offers: DomainAvailability[],
+  ): Promise<DomainAvailability[]> {
+    const live = new Map<string, AvailabilityResult>();
+    for (const o of offers) {
+      const id = this.registrarIdByName(o.registrar);
+      if (!id) continue;
+      live.set(id, {
+        domain,
+        tld,
+        status: o.status,
+        premium: o.premiumDomain,
+        ...(o.priceSource === 'live'
+          ? {
+              price: o.price,
+              renewalPrice: o.renewalPrice,
+              currency: o.currency,
+            }
+          : {}),
+        reason: o.reason,
+        error: o.error,
+      });
+    }
+    if (resolveStatus([...live.values()]) !== 'available') return offers;
+    const catalog = await this.tldPricesService.getPricesForTlds([tld]);
+    const fqdn = `${domain}.${tld}`;
+    return buildOffers({
+      domain,
+      tld,
+      live,
+      catalog: catalog.get(tld) ?? [],
+      enabled: this.getEnabledProviderIds(),
+      displayName: (id) => this.displayName(id),
+      purchaseUrl: (id) =>
+        this.buyUrl(id, fqdn) ? outPath(id, fqdn) : undefined,
+      checkedAt: offers[0]?.checkedAt
+        ? new Date(offers[0].checkedAt)
+        : new Date(),
+    });
+  }
+
+  private registrarIdByName(name: string): string | undefined {
+    for (const p of this.providersById.values())
+      if (p.getProviderName() === name || p.id === name) return p.id;
+    return undefined;
   }
 
   /** All TLDs with their cheapest prices, for the public price pages. */

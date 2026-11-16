@@ -227,8 +227,9 @@ export class DomainsController {
     status: string;
     sseUrl: string;
     creditsDeducted: number;
+    searchId: string;
   }> {
-    const { batchId, creditsDeducted } =
+    const { batchId, creditsDeducted, searchId } =
       await this.domainsService.checkDomainsBulk(dto, user.id);
 
     const apiPrefix = this.configService.get<string>('app.apiPrefix') || 'api';
@@ -239,6 +240,7 @@ export class DomainsController {
       status: 'queued',
       sseUrl,
       creditsDeducted,
+      searchId,
     };
   }
 

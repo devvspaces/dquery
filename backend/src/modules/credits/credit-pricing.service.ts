@@ -7,6 +7,8 @@ export interface CreditPricing {
   perAiGeneration: number;
   perWordGeneration: number;
   perDomainCheck: number;
+  /** Saved searches: re-read prices for one domain from the catalog. */
+  perPriceRefresh: number;
 }
 
 export interface CreditQuote {
@@ -33,6 +35,7 @@ export class CreditPricingService {
       perAiGeneration: this.settings.get<number>('credits.perAiGeneration'),
       perWordGeneration: this.settings.get<number>('credits.perWordGeneration'),
       perDomainCheck: this.settings.get<number>('credits.perDomainCheck'),
+      perPriceRefresh: this.settings.get<number>('credits.perPriceRefresh'),
     };
   }
 
@@ -51,6 +54,11 @@ export class CreditPricingService {
   /** Cost of checking `domains` fully-qualified domains. */
   quoteChecks(domains: number): CreditQuote {
     return this.build(0, domains);
+  }
+
+  /** Cost of refreshing the prices of `domains` saved results from the catalog. */
+  quotePriceRefresh(domains: number): number {
+    return round2(domains * this.pricing().perPriceRefresh);
   }
 
   private build(generation: number, checks: number): CreditQuote {

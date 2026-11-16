@@ -71,6 +71,13 @@
       "when": 1794832994203,
       "tag": "0009_buy_clicks",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794835929357,
+      "tag": "0010_saved_search_results",
+      "breakpoints": true
     }
   ]
 }

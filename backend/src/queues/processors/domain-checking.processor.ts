@@ -13,6 +13,7 @@ import {
 import { jobQueueLogs } from '../../database/schema';
 import { eq } from 'drizzle-orm';
 import { pickBestOffer } from '../../modules/registrars/aggregation';
+import { saveSearchResults } from '../../modules/domains/search-store';
 import {
   normalizeName,
   normalizeTld,
@@ -63,7 +64,9 @@ export class DomainCheckingProcessor extends WorkerHost {
 
       // Check all domains in bulk
       const availabilityResultsMap =
-        await this.registrarsService.checkDomainsBulk(domainsToCheck, userId);
+        await this.registrarsService.checkDomainsBulk(domainsToCheck, userId, {
+          force: job.data.force,
+        });
 
       // Compile results for each domain
       const results: DomainCheckingJobResult['results'] = [];
@@ -94,6 +97,16 @@ export class DomainCheckingProcessor extends WorkerHost {
         results,
         checkedAt: new Date(),
       };
+
+      // Keep the results on the user's search so it can be reopened.
+      if (job.data.searchHistoryId) {
+        await saveSearchResults(db, job.data.searchHistoryId, results).catch(
+          (err) =>
+            this.logger.warn(
+              `Could not store results for search ${job.data.searchHistoryId}: ${err instanceof Error ? err.message : err}`,
+            ),
+        );
+      }
 
       // Update job status to completed
       await db

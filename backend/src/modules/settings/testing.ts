@@ -24,6 +24,7 @@ export const LAUNCH_PRICING = {
   'credits.perAiGeneration': 1,
   'credits.perWordGeneration': 0.25,
   'credits.perDomainCheck': 0.05,
+  'credits.perPriceRefresh': 0.01,
   'credits.freeEarly': 10,
   'credits.freeEarlyLimit': 500,
   'credits.freeDefault': 5,

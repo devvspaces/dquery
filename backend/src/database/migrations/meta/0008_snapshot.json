@@ -238,13 +238,9 @@
         "api_usage_logs_user_id_users_id_fk": {
           "name": "api_usage_logs_user_id_users_id_fk",
           "tableFrom": "api_usage_logs",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -321,13 +317,9 @@
         "llm_usage_logs_user_id_users_id_fk": {
           "name": "llm_usage_logs_user_id_users_id_fk",
           "tableFrom": "llm_usage_logs",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -443,13 +435,9 @@
         "bookmarks_user_id_users_id_fk": {
           "name": "bookmarks_user_id_users_id_fk",
           "tableFrom": "bookmarks",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -548,13 +536,9 @@
         "credit_transactions_user_id_users_id_fk": {
           "name": "credit_transactions_user_id_users_id_fk",
           "tableFrom": "credit_transactions",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -639,13 +623,9 @@
         "credits_user_id_users_id_fk": {
           "name": "credits_user_id_users_id_fk",
           "tableFrom": "credits",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -764,9 +744,7 @@
       "uniqueConstraints": {
         "domain_popularity_domain_unique": {
           "name": "domain_popularity_domain_unique",
-          "columns": [
-            "domain"
-          ],
+          "columns": ["domain"],
           "nullsNotDistinct": false
         }
       },
@@ -980,9 +958,7 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         }
       },
@@ -1045,13 +1021,9 @@
         "saved_searches_user_id_users_id_fk": {
           "name": "saved_searches_user_id_users_id_fk",
           "tableFrom": "saved_searches",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1117,13 +1089,9 @@
         "search_history_user_id_users_id_fk": {
           "name": "search_history_user_id_users_id_fk",
           "tableFrom": "search_history",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1246,13 +1214,9 @@
         "purchases_user_id_users_id_fk": {
           "name": "purchases_user_id_users_id_fk",
           "tableFrom": "purchases",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1362,13 +1326,9 @@
         "job_queue_logs_user_id_users_id_fk": {
           "name": "job_queue_logs_user_id_users_id_fk",
           "tableFrom": "job_queue_logs",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -1377,9 +1337,7 @@
       "uniqueConstraints": {
         "job_queue_logs_job_id_unique": {
           "name": "job_queue_logs_job_id_unique",
-          "columns": [
-            "job_id"
-          ],
+          "columns": ["job_id"],
           "nullsNotDistinct": false
         }
       },

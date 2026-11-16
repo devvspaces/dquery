@@ -16,6 +16,10 @@ export interface DomainGenerationJobData {
   tlds: string[];
   creditsDeducted: number;
   searchHistoryId?: string;
+  /** "More names" for an existing search: append to it instead of creating one. */
+  searchId?: string;
+  /** Names to leave out (already in the search). */
+  exclude?: string[];
 }
 
 export interface DomainGenerationJobResult {
@@ -39,7 +43,10 @@ export interface DomainCheckingJobData {
   domains: Array<{ domain: string; tld: string }>;
   creditsDeducted: number;
   parentJobId?: string;
+  /** saved_searches.id: results are stored on that search. */
   searchHistoryId?: string;
+  /** Skip the short-lived availability cache (user asked for a re-check). */
+  force?: boolean;
 }
 
 export interface DomainCheckingJobResult {

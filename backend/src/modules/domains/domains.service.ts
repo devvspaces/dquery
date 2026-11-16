@@ -12,6 +12,7 @@ import {
   BulkCheckDomainsDto,
 } from '../registrars/dto/check-domain.dto';
 import { DatabaseService } from '../../database/database.service';
+import { SearchesService } from './searches.service';
 import { bookmarks, savedSearches } from '../../database/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
@@ -25,6 +26,7 @@ export class DomainsService {
     private readonly checkingProducer: DomainCheckingProducer,
     private readonly pricing: CreditPricingService,
     private readonly databaseService: DatabaseService,
+    private readonly searches: SearchesService,
   ) {}
 
   /**
@@ -186,8 +188,10 @@ export class DomainsService {
   async checkDomainsBulk(
     dto: BulkCheckDomainsDto,
     userId: string,
-  ): Promise<{ batchId: string; creditsDeducted: number }> {
+  ): Promise<{ batchId: string; creditsDeducted: number; searchId: string }> {
     const totalCredits = this.pricing.quoteChecks(dto.domains.length).total;
+    // Validate the search before charging (404 for someone else's).
+    if (dto.searchId) await this.searches.attachCheck(userId, [], dto.searchId);
 
     const balance = await this.creditsService.getBalance(userId);
     if (balance.balance < totalCredits) {
@@ -202,31 +206,20 @@ export class DomainsService {
     );
 
     const batchId = `batch-${randomUUID()}`;
-
-    // Chunk domains into batches of 20 to leverage our bulk APIs
-    const chunkSize = 20;
-    const batches: Array<Array<{ domain: string; tld: string }>> = [];
-    for (let i = 0; i < dto.domains.length; i += chunkSize) {
-      batches.push(dto.domains.slice(i, i + chunkSize));
-    }
-
-    // Add job for each batch
-    for (const batch of batches) {
-      const batchCredits = this.pricing.quoteChecks(batch.length).total;
-
-      await this.checkingProducer.addJob({
-        userId,
-        domains: batch,
-        creditsDeducted: batchCredits,
-        parentJobId: batchId,
-      });
-    }
+    // Every check is stored on a saved search so it can be reopened later.
+    const searchId = await this.searches.attachCheck(
+      userId,
+      dto.domains,
+      dto.searchId,
+      dto.title,
+    );
+    await this.searches.enqueueChecks(userId, searchId, dto.domains, batchId);
 
     this.logger.log(
-      `Created bulk check batch ${batchId} with ${batches.length} jobs (total ${dto.domains.length} checks) for user ${userId}, deducted ${totalCredits.toFixed(2)} credits`,
+      `Created bulk check batch ${batchId} (${dto.domains.length} checks, search ${searchId}) for user ${userId}, deducted ${totalCredits.toFixed(2)} credits`,
     );
 
-    return { batchId, creditsDeducted: totalCredits };
+    return { batchId, creditsDeducted: totalCredits, searchId };
   }
 
   /**

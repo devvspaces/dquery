@@ -25,13 +25,17 @@ export class DomainGenerationProducer {
     private readonly databaseService: DatabaseService,
   ) {}
 
-  async addJob(data: DomainGenerationJobData): Promise<string> {
+  /** `jobId` lets a caller record the id before queueing (e.g. on its charge). */
+  async addJob(
+    data: DomainGenerationJobData,
+    jobId = `gen-${randomUUID()}`,
+  ): Promise<string> {
     const db = this.databaseService.getDb();
 
     const job = await this.generationQueue.add('generate-domains', data, {
       // Unique ids: BullMQ's default counter restarts when Redis is reset,
       // which would collide with job_queue_logs rows from before.
-      jobId: `gen-${randomUUID()}`,
+      jobId,
       attempts:
         this.configService.get<number>('queue.generation.attempts') || 2,
       backoff: this.configService.get('queue.generation.backoff') || {

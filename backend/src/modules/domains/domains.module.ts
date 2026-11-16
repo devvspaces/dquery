@@ -5,11 +5,20 @@ import { DomainsService } from './domains.service';
 import { QueuesModule } from '../../queues/queues.module';
 import { CreditsModule } from '../credits/credits.module';
 import { DatabaseModule } from '../../database/database.module';
+import { RegistrarsModule } from '../registrars/registrars.module';
+import { SearchesController } from './searches.controller';
+import { SearchesService } from './searches.service';
 
 @Module({
-  imports: [ConfigModule, QueuesModule, CreditsModule, DatabaseModule],
-  controllers: [DomainsController],
-  providers: [DomainsService],
+  imports: [
+    ConfigModule,
+    QueuesModule,
+    CreditsModule,
+    DatabaseModule,
+    RegistrarsModule,
+  ],
+  controllers: [DomainsController, SearchesController],
+  providers: [DomainsService, SearchesService],
   exports: [DomainsService],
 })
 export class DomainsModule {}
