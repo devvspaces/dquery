@@ -47,6 +47,19 @@ export const priceSyncRuns = pgTable(
   (t) => [index('price_sync_runs_started_at_idx').on(t.startedAt)],
 );
 
+/** One row per Buy click (via /api/out), to see which registrars convert. */
+export const buyClicks = pgTable(
+  'buy_clicks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    registrar: varchar('registrar', { length: 50 }).notNull(),
+    tld: varchar('tld', { length: 63 }).notNull(),
+    affiliate: boolean('affiliate').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('buy_clicks_created_at_idx').on(t.createdAt)],
+);
+
 export type AppSetting = typeof appSettings.$inferSelect;
 export type AdminAuditEntry = typeof adminAuditLog.$inferSelect;
 export type PriceSyncRun = typeof priceSyncRuns.$inferSelect;

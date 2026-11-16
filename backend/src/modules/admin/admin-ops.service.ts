@@ -40,9 +40,13 @@ export class AdminOpsService {
 
   // --- Registrars ------------------------------------------------------------
 
+  buyLinks(domain: string) {
+    return this.registrars.describeBuyLinks(domain.trim().toLowerCase());
+  }
+
   async registrarHealth() {
     const providers = this.registrars.describeProviders();
-    const [catalog, lastRuns, api] = await Promise.all([
+    const [catalog, lastRuns, api, clicks] = await Promise.all([
       this.rows(sql`
         select registrar, count(*) as tlds, max(updated_at) as updated_at,
           count(*) filter (where source = 'manual') as manual
@@ -58,12 +62,17 @@ export class AdminOpsService {
         from registrar_api_logs
         where created_at > now() - interval '24 hours' and response_time is not null
         group by registrar`),
+      this.rows(sql`
+        select registrar, count(*) as clicks
+        from buy_clicks where created_at > now() - interval '30 days'
+        group by registrar`),
     ]);
     const byId = (rows: Row[]) =>
       new Map(rows.map((r) => [String(r.registrar), r]));
     const cat = byId(catalog);
     const runs = byId(lastRuns);
     const calls = byId(api); // keyed by display name
+    const clicked = byId(clicks);
     return providers.map((p) => {
       const c = cat.get(p.id);
       const run = runs.get(p.id);
@@ -72,6 +81,7 @@ export class AdminOpsService {
         ...p,
         tldCount: n(c?.tlds),
         manualPrices: n(c?.manual),
+        buyClicks30d: n(clicked.get(p.id)?.clicks),
         pricesUpdatedAt: c?.updated_at ?? null,
         lastSync: run
           ? {

@@ -336,6 +336,30 @@ export class TldPricesService {
     return result;
   }
 
+  /**
+   * Every TLD's plausible catalog prices (USD where convertible), for the
+   * public price pages. Cached per catalog version, so a sync refreshes it.
+   */
+  async allPrices(): Promise<Map<string, CatalogPrice[]>> {
+    const key = `pricing:v${await this.getCacheVersion()}:all`;
+    try {
+      const cached =
+        await this.redisService.getJson<Array<[string, CatalogPrice[]]>>(key);
+      if (cached) return new Map(cached);
+    } catch {
+      // Fall through to the database.
+    }
+    const rows = await this.databaseService
+      .getDb()
+      .selectDistinct({ tld: tldPrices.tld })
+      .from(tldPrices);
+    const all = await this.getPricesForTlds(rows.map((r) => r.tld));
+    await this.redisService
+      .setJson(key, [...all.entries()], this.cacheTTL)
+      .catch(() => undefined);
+    return all;
+  }
+
   /** Keep a history of sync results for the admin panel. Never fails the sync. */
   private async recordRun(report: SyncReport, startedAt: Date): Promise<void> {
     try {

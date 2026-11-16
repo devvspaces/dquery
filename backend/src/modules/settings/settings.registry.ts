@@ -174,6 +174,25 @@ export const SETTINGS: readonly SettingDef[] = [
     patternHint: 'https URL containing {domain}',
   },
   {
+    key: 'registrars.affiliates',
+    group: 'Registrars',
+    type: 'record',
+    label: 'Affiliate links',
+    description:
+      'Registrar id → affiliate URL wrapping the buy link. {url} = buy link URL-encoded (Impact ?u={url}), {rawurl} = as-is (CJ /type/dlg/{rawurl}), {domain} = the domain. No placeholder = used as-is (WHMCS aff.php?aff=ID).',
+    envDefault: () => {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(process.env)) {
+        const m = /^REGISTRAR_AFFILIATE_(.+)$/.exec(k);
+        if (m && v) out[m[1].toLowerCase()] = v;
+      }
+      return out;
+    },
+    pattern: /^(https:\/\/\S+|\{rawurl\}\S*)$/,
+    patternHint:
+      'https URL, optionally with {url}/{rawurl}/{domain}, or {rawurl}&param=ID',
+  },
+  {
     key: 'registrars.ovhSubsidiary',
     group: 'Registrars',
     type: 'enum',

@@ -77,3 +77,11 @@ export class PaymentsQueryDto extends PageQueryDto {
   @IsIn(['pending', 'completed', 'failed', 'refunded'])
   status?: string;
 }
+
+export class LinkTestQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z0-9-]+(\.[a-z0-9-]+){1,3}$/i)
+  @MaxLength(253)
+  domain?: string;
+}

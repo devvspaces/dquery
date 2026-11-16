@@ -1,3 +1,9 @@
+import {
+  toPublicCatalog,
+  toPublicDetail,
+  type PublicCatalog,
+  type PublicTldDetail,
+} from './public-catalog';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '../../database/database.service';
@@ -176,8 +182,6 @@ export class RegistrarsService {
     await Promise.all(
       misses.map(async (d) => {
         const fqdn = `${d.domain}.${d.tld}`;
-        const links =
-          this.settings.get<Record<string, string>>('registrars.links');
         const liveForDomain =
           live.get(fqdn) ?? new Map<string, AvailabilityResult>();
         let offers = buildOffers({
@@ -187,10 +191,10 @@ export class RegistrarsService {
           catalog: catalog.get(d.tld) ?? [],
           enabled,
           displayName: (id) => this.displayName(id),
+          // Buy goes through /api/out so clicks are counted and the
+          // current link/affiliate settings apply at click time.
           purchaseUrl: (id) =>
-            this.providersById
-              .get(id)
-              ?.purchaseUrl?.(`${d.domain}.${d.tld}`, links[id]),
+            this.buyUrl(id, fqdn) ? outPath(id, fqdn) : undefined,
           checkedAt,
         });
 
@@ -277,6 +281,64 @@ export class RegistrarsService {
       this.providersById.get(id)?.getProviderName() ??
       id.charAt(0).toUpperCase() + id.slice(1)
     );
+  }
+
+  /** All TLDs with their cheapest prices, for the public price pages. */
+  async publicCatalog(): Promise<PublicCatalog> {
+    return toPublicCatalog(
+      await this.tldPricesService.allPrices(),
+      this.getEnabledProviderIds(),
+      (id) => this.displayName(id),
+    );
+  }
+
+  /** One TLD's prices per registrar, for its public price page. */
+  async publicTld(tld: string): Promise<PublicTldDetail> {
+    const prices = await this.tldPricesService.getPricesForTlds([tld]);
+    return toPublicDetail(
+      tld,
+      prices.get(tld) ?? [],
+      this.getEnabledProviderIds(),
+      (id) => this.displayName(id),
+    );
+  }
+
+  hasRegistrar(id: string): boolean {
+    return this.providersById.has(id);
+  }
+
+  hasAffiliate(id: string): boolean {
+    return Boolean(
+      this.settings.get<Record<string, string>>('registrars.affiliates')[id],
+    );
+  }
+
+  /** Where Buy for this domain at this registrar should go right now. */
+  buyUrl(registrarId: string, fqdn: string): string | undefined {
+    const provider = this.providersById.get(registrarId);
+    if (!provider?.purchaseUrl) return undefined;
+    const links = this.settings.get<Record<string, string>>('registrars.links');
+    const affiliates = this.settings.get<Record<string, string>>(
+      'registrars.affiliates',
+    );
+    return provider.purchaseUrl(
+      fqdn,
+      links[registrarId],
+      affiliates[registrarId],
+    );
+  }
+
+  /** Every registrar's final buy link for a sample domain (admin link test). */
+  describeBuyLinks(fqdn: string) {
+    const affiliates = this.settings.get<Record<string, string>>(
+      'registrars.affiliates',
+    );
+    return [...this.providersById.values()].map((p) => ({
+      id: p.id,
+      name: p.getProviderName(),
+      url: this.buyUrl(p.id, fqdn) ?? null,
+      affiliate: Boolean(affiliates[p.id]),
+    }));
   }
 
   /** Every registered provider with its status, for the admin panel. */
@@ -415,4 +477,9 @@ export class RegistrarsService {
       ),
     ]);
   }
+}
+
+/** Relative click-through path; the frontend prefixes the API origin. */
+export function outPath(registrarId: string, fqdn: string): string {
+  return `/api/out/${encodeURIComponent(registrarId)}?d=${encodeURIComponent(fqdn)}`;
 }

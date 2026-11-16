@@ -16,6 +16,8 @@ export interface WhmcsFeedConfig {
   currency: string;
   /** TLDs to price; the feed answers one TLD at a time. */
   tlds?: string[];
+  /** Buy link with {domain}; defaults to WHMCS `cart.php`. */
+  purchaseUrl?: string;
 }
 
 /** Popular gTLDs plus African ccTLDs; most WHMCS registrars serve these. */
@@ -74,7 +76,9 @@ export class WhmcsFeedProvider
     );
     this.id = config.id;
     this.displayName = config.name;
-    this.purchaseUrlTemplate = `${config.baseUrl}/cart.php?a=add&domain=register&query={domain}`;
+    this.purchaseUrlTemplate =
+      config.purchaseUrl ??
+      `${config.baseUrl}/cart.php?a=add&domain=register&query={domain}`;
   }
 
   /** Built-in registrars plus any from REGISTRARS_WHMCS (JSON array of WhmcsFeedConfig). */
@@ -91,6 +95,9 @@ export class WhmcsFeedProvider
         name: 'WhoGoHost',
         baseUrl: 'https://www.whogohost.com/host',
         currency: 'NGN',
+        // cart.php sits behind a login; the new checkout page doesn't.
+        purchaseUrl:
+          'https://panel.whogohost.com/checkout/0?domain={domain}&currency=NGN',
       },
     ];
     let extra: WhmcsFeedConfig[] = [];

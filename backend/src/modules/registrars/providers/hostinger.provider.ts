@@ -22,7 +22,7 @@ export class HostingerProvider
   readonly id = 'hostinger';
   protected readonly displayName = 'Hostinger';
   protected readonly purchaseUrlTemplate =
-    'https://www.hostinger.com/domain-name-results?domain={domain}';
+    'https://www.hostinger.com/domain-name-search?domain={domain}';
 
   constructor() {
     super('HostingerProvider', { requestsPerMinute: 10, maxBulkSize: 1 }, 1);

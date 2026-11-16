@@ -25,6 +25,7 @@ import {
   PageQueryDto,
   PaymentsQueryDto,
   PricesQueryDto,
+  LinkTestQueryDto,
   SettingValueDto,
   SuspendDto,
   SyncDto,
@@ -101,6 +102,12 @@ export class AdminController {
   @Get('registrars')
   registrars() {
     return this.ops.registrarHealth();
+  }
+
+  /** Every registrar's current Buy link for a sample domain, to click-test. */
+  @Get('registrars/links')
+  buyLinks(@Query() q: LinkTestQueryDto) {
+    return this.ops.buyLinks(q.domain ?? 'example.com');
   }
 
   @Get('registrars/sync-runs')

@@ -8,6 +8,19 @@ import { BaseRegistrarProvider } from './base.provider';
 import { roundMoney } from '../utils/domain.util';
 import { SettingsService } from '../../settings/settings.service';
 
+/** OVH subsidiary → its order-site locale. */
+const OVH_LOCALES: Record<string, string> = {
+  IE: 'en-ie',
+  GB: 'en-gb',
+  FR: 'fr',
+  DE: 'de',
+  ES: 'es-es',
+  IT: 'it',
+  NL: 'nl',
+  PL: 'pl',
+  PT: 'pt',
+};
+
 /** OVH prices are integers in 1e-8 of the currency unit (849000000 = 8.49). */
 const OVH_PRICE_UNIT = 1e8;
 
@@ -24,11 +37,21 @@ export class OvhProvider
 {
   readonly id = 'ovh';
   protected readonly displayName = 'OVHcloud';
-  protected readonly purchaseUrlTemplate =
-    'https://www.ovhcloud.com/en-ie/domains/?domain={domain}';
-
   constructor(private readonly settings: SettingsService) {
     super('OvhProvider', { requestsPerMinute: 5, maxBulkSize: 1 }, 1);
+  }
+
+  /** The order funnel's domain step, in the same OVH region we price from. */
+  protected linkTemplate(): string {
+    return OvhProvider.orderUrlTemplate(
+      this.settings.get<string>('registrars.ovhSubsidiary'),
+    );
+  }
+
+  static orderUrlTemplate(subsidiary: string): string {
+    const sub = (subsidiary || 'IE').toUpperCase();
+    const locale = OVH_LOCALES[sub] ?? 'en-ie';
+    return `https://order.eu.ovhcloud.com/${locale}/order/webcloud/?#/webCloud/domain/select?domain={domain}`;
   }
 
   protected hasCredentials(): boolean {

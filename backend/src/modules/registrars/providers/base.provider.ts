@@ -42,18 +42,31 @@ export abstract class BaseRegistrarProvider implements IRegistrarProvider {
 
   /**
    * Search/checkout URL with `{domain}` as placeholder. Override per
-   * deployment (e.g. with an affiliate link) via REGISTRAR_LINK_<ID>.
+   * deployment via the `registrars.links` setting or REGISTRAR_LINK_<ID>.
    */
   protected readonly purchaseUrlTemplate?: string;
 
-  purchaseUrl(fqdn: string, override?: string): string | undefined {
+  /** The built-in deep-link template; providers whose URL depends on settings override this. */
+  protected linkTemplate(): string | undefined {
+    return this.purchaseUrlTemplate;
+  }
+
+  /**
+   * Where "Buy" goes for this domain. `override` replaces the deep link;
+   * `affiliate` wraps it (see {@link buildBuyUrl}).
+   */
+  purchaseUrl(
+    fqdn: string,
+    override?: string,
+    affiliate?: string,
+  ): string | undefined {
     const template =
       override ||
       process.env[
         `REGISTRAR_LINK_${this.id.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
       ] ||
-      this.purchaseUrlTemplate;
-    return template?.replace(/\{domain\}/g, encodeURIComponent(fqdn));
+      this.linkTemplate();
+    return buildBuyUrl(fqdn, template, affiliate);
   }
 
   getRateLimits(): ProviderRateLimits {
@@ -127,4 +140,33 @@ export abstract class BaseRegistrarProvider implements IRegistrarProvider {
       );
     });
   }
+}
+
+/**
+ * Fill a buy-link template.
+ * - Deep link: `{domain}` → the domain.
+ * - Affiliate wrapper (optional), applied to the deep link:
+ *   `{url}` → deep link, URL-encoded (Impact `?u={url}`);
+ *   `{rawurl}` → deep link as-is (CJ `/type/dlg/{rawurl}`, `{rawurl}&aff=ID`);
+ *   `{domain}` → the domain. A wrapper with no placeholder is used verbatim
+ *   (e.g. WHMCS `aff.php?aff=ID`, which can't carry the domain).
+ */
+export function buildBuyUrl(
+  fqdn: string,
+  template?: string,
+  affiliate?: string,
+): string | undefined {
+  const domain = encodeURIComponent(fqdn);
+  const deep = template?.replace(/\{domain\}/g, domain);
+  if (!affiliate) return deep;
+  if (!deep && /\{(raw)?url\}/.test(affiliate)) return undefined;
+  // "{rawurl}&aff=ID" on a link without a query string needs "?" instead.
+  const wrapper =
+    deep && !deep.includes('?') && affiliate.startsWith('{rawurl}&')
+      ? `{rawurl}?${affiliate.slice('{rawurl}&'.length)}`
+      : affiliate;
+  return wrapper
+    .replace(/\{url\}/g, encodeURIComponent(deep ?? ''))
+    .replace(/\{rawurl\}/g, deep ?? '')
+    .replace(/\{domain\}/g, domain);
 }

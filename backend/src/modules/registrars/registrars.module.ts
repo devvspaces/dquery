@@ -4,6 +4,7 @@ import { CommandModule } from 'nestjs-command';
 import { DatabaseModule } from '../../database/database.module';
 import { RedisModule } from '../../redis/redis.module';
 import { RegistrarsController } from './registrars.controller';
+import { PublicController } from './public.controller';
 import { RegistrarsService } from './registrars.service';
 import { GoDaddyProvider } from './providers/godaddy.provider';
 import { CloudflareProvider } from './providers/cloudflare.provider';
@@ -42,7 +43,7 @@ const PROVIDER_CLASSES = [
 
 @Module({
   imports: [ConfigModule, DatabaseModule, RedisModule, CommandModule],
-  controllers: [RegistrarsController],
+  controllers: [RegistrarsController, PublicController],
   providers: [
     ...PROVIDER_CLASSES,
     {
