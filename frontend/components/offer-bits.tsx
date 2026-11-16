@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/lib/config";
 import type { RegistrarPrice } from "@/lib/types";
 
 /** "$9.37", with the registrar's own price in a tooltip when it was converted. */
@@ -31,14 +32,22 @@ export function PriceText({
   );
 }
 
-/** Outbound "Buy" link to the registrar's search/checkout page. */
+/**
+ * Outbound "Buy" link. The API returns a relative `/api/out/…` click-through
+ * (counted, then redirected to the registrar); older cached results may still
+ * carry the registrar URL itself.
+ */
+export function buyHref(purchaseUrl: string): string {
+  return purchaseUrl.startsWith("/") ? `${API_BASE_URL}${purchaseUrl}` : purchaseUrl;
+}
+
 export function BuyLink({ offer, className }: { offer: RegistrarPrice; className?: string }) {
   if (!offer.purchaseUrl || !offer.available) return null;
   return (
     <a
-      href={offer.purchaseUrl}
+      href={buyHref(offer.purchaseUrl)}
       target="_blank"
-      rel="noopener noreferrer sponsored"
+      rel="noopener sponsored nofollow"
       onClick={(e) => e.stopPropagation()}
       className={cn(
         "inline-flex items-center gap-0.5 rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary",

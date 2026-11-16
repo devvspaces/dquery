@@ -14,7 +14,7 @@ function AuthCallbackContent() {
     if (token) {
       setToken(token);
     }
-    router.replace("/");
+    router.replace("/search");
   }, [searchParams, setToken, router]);
 
   return (

@@ -15,14 +15,16 @@ import type { GenerateRequest, WordEngineConfig } from "@/lib/types";
 interface GeneratorFormProps {
   onGenerate: (data: GenerateRequest) => void;
   isLoading: boolean;
+  /** Prefilled description, e.g. from the landing page's search box. */
+  initialDescription?: string;
 }
 
 type Engine = GenerateRequest["engine"];
 
-export function GeneratorForm({ onGenerate, isLoading }: GeneratorFormProps) {
+export function GeneratorForm({ onGenerate, isLoading, initialDescription = "" }: GeneratorFormProps) {
   const [engine, setEngine] = useState<Engine>("ai");
   const [businessName, setBusinessName] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initialDescription);
   const [wordConfig, setWordConfig] = useState<WordEngineConfig>(DEFAULT_WORD_CONFIG);
   const [selectedTlds, setSelectedTlds] = useState<string[]>(DEFAULT_SELECTED);
 

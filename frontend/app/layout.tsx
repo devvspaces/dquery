@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Providers } from "@/components/providers";
 
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -13,10 +14,24 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DQuery - Domain Name Generator & Price Checker",
-  applicationName: "DQuery",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "DQuery: domain name generator and registrar price comparison",
+    template: "%s · DQuery",
+  },
+  applicationName: SITE_NAME,
   description:
-    "Generate creative domain names for your business and check availability across multiple registrars. Find the perfect domain at the best price.",
+    "Generate brandable domain names with AI or a word builder, check availability live, and compare first-year, renewal and 3-year prices across registrars.",
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export const viewport: Viewport = {

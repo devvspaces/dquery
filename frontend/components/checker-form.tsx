@@ -12,10 +12,12 @@ interface CheckerFormProps {
   /** The typed name or domain plus the extensions to check it across. */
   onCheck: (query: string, tlds: string[]) => void;
   isLoading: boolean;
+  /** Prefilled name or domain, e.g. from the landing page's search box. */
+  initialDomain?: string;
 }
 
-export function CheckerForm({ onCheck, isLoading }: CheckerFormProps) {
-  const [domain, setDomain] = useState("");
+export function CheckerForm({ onCheck, isLoading, initialDomain = "" }: CheckerFormProps) {
+  const [domain, setDomain] = useState(initialDomain);
   const [selectedTlds, setSelectedTlds] = useState<string[]>(DEFAULT_SELECTED);
 
   const pairs = buildCheckPairs(domain, selectedTlds);

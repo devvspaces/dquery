@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DataTable, PageHeader, Panel, QueryState, StatusBadge } from "@/components/admin/bits";
@@ -15,6 +16,7 @@ interface Registrar {
   checkOrder: number | null;
   tldCount: number;
   manualPrices: number;
+  buyClicks30d: number;
   pricesUpdatedAt: string | null;
   lastSync: { ok: boolean; count: number; error: string | null; startedAt: string; durationMs: number } | null;
   api24h: { calls: number; successRate: number; p50Ms: number; p95Ms: number } | null;
@@ -54,7 +56,7 @@ export default function AdminRegistrars() {
       <Panel>
         <QueryState isLoading={isLoading} error={error} />
         {data && (
-          <DataTable head={["Registrar", "Status", "Role", "Catalog", "Last sync", "API (24h)", ""]}>
+          <DataTable head={["Registrar", "Status", "Role", "Catalog", "Last sync", "API (24h)", "Buy clicks (30d)", ""]}>
             {data.map((r) => (
               <tr key={r.id}>
                 <td className="px-3 py-2">
@@ -113,6 +115,7 @@ export default function AdminRegistrars() {
                     <span className="text-muted-foreground">no calls</span>
                   )}
                 </td>
+                <td className="px-3 py-2 text-xs tabular-nums text-foreground">{num(r.buyClicks30d ?? 0)}</td>
                 <td className="px-3 py-2 text-right">
                   {r.publishesCatalog && r.configured && (
                     <Button size="sm" variant="outline" onClick={() => runSync([r.id])} disabled={sync.isPending}>
@@ -125,6 +128,7 @@ export default function AdminRegistrars() {
           </DataTable>
         )}
       </Panel>
+      <BuyLinkTest />
       <Panel title="Sync history">
         <QueryState isLoading={runs.isLoading} error={runs.error} />
         {runs.data && (
@@ -144,5 +148,68 @@ export default function AdminRegistrars() {
         )}
       </Panel>
     </div>
+  );
+}
+
+interface BuyLink {
+  id: string;
+  name: string;
+  url: string | null;
+  affiliate: boolean;
+}
+
+/**
+ * Every registrar's current Buy link for a sample domain, so each can be
+ * click-tested. Links and affiliate wrappers are edited in Settings.
+ */
+function BuyLinkTest() {
+  const [domain, setDomain] = useState("example.com");
+  const [shown, setShown] = useState("example.com");
+  const links = useAdminQuery<BuyLink[]>(["buy-links", shown], `/registrars/links?domain=${encodeURIComponent(shown)}`);
+
+  return (
+    <Panel title="Test buy links">
+      <form
+        className="mb-3 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (/^[a-z0-9-]+(\.[a-z0-9-]+){1,3}$/i.test(domain.trim())) setShown(domain.trim().toLowerCase());
+        }}
+      >
+        <input
+          value={domain}
+          onChange={(e) => setDomain(e.target.value)}
+          aria-label="Sample domain"
+          className="h-9 w-64 rounded-lg border border-input bg-background px-3 font-mono text-sm"
+        />
+        <Button size="sm" type="submit" variant="outline">Build links</Button>
+      </form>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Open each link and check it lands on that domain, ready to buy. Fix wrong ones in Settings → Buy-link overrides;
+        add affiliate tracking in Settings → Affiliate links.
+      </p>
+      <QueryState isLoading={links.isLoading} error={links.error} />
+      {links.data && (
+        <DataTable head={["Registrar", "Affiliate", "Link"]}>
+          {links.data.map((l) => (
+            <tr key={l.id}>
+              <td className="px-3 py-2 font-medium text-foreground">{l.name}</td>
+              <td className="px-3 py-2">
+                {l.affiliate ? <StatusBadge tone="ok">On</StatusBadge> : <StatusBadge tone="muted">None</StatusBadge>}
+              </td>
+              <td className="max-w-xl truncate px-3 py-2 font-mono text-xs">
+                {l.url ? (
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" title={l.url}>
+                    {l.url}
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">no link</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </DataTable>
+      )}
+    </Panel>
   );
 }

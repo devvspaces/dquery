@@ -86,7 +86,7 @@ function PaymentStatus() {
         </p>
         {state.kind !== "checking" && (
           <Link
-            href="/"
+            href="/search"
             className="mt-5 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Back to DQuery
