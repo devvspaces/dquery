@@ -14,6 +14,8 @@ export interface ReviewState {
   names: string[];
   techniques: Record<string, string>;
   tlds: string[];
+  /** Names to start selected (default: all). */
+  selected?: string[];
 }
 
 interface NameReviewProps {
@@ -21,6 +23,8 @@ interface NameReviewProps {
   isLoading: boolean;
   onCheck: (pairs: DomainPair[], techniques: Record<string, string>) => void;
   onBack: () => void;
+  /** Label for the back button ("Back" or "Back to results"). */
+  backLabel?: string;
 }
 
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -29,9 +33,9 @@ const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
  * Step between generating and checking: keep the names you like, drop the
  * rest, add your own, adjust extensions, then pay only for what you check.
  */
-export function NameReview({ review, isLoading, onCheck, onBack }: NameReviewProps) {
+export function NameReview({ review, isLoading, onCheck, onBack, backLabel = "Back" }: NameReviewProps) {
   const [names, setNames] = useState<string[]>(review.names);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(review.names));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(review.selected ?? review.names));
   const [tlds, setTlds] = useState<string[]>(review.tlds);
   const [custom, setCustom] = useState("");
   const [showTlds, setShowTlds] = useState(false);
@@ -88,7 +92,7 @@ export function NameReview({ review, isLoading, onCheck, onBack }: NameReviewPro
         </div>
       </div>
 
-      <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {names.map((name) => {
           const on = selected.has(name);
           const technique = review.techniques[name] as Technique | undefined;
@@ -164,7 +168,7 @@ export function NameReview({ review, isLoading, onCheck, onBack }: NameReviewPro
       <div className="space-y-2">
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onBack} disabled={isLoading}>
-            Back
+            {backLabel}
           </Button>
           <Button
             type="button"

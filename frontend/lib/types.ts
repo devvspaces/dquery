@@ -1,15 +1,22 @@
+export type AvailabilityStatus = "available" | "taken" | "unknown" | "unsupported";
+
+/** A domain row's state: still being checked, or what the check found. */
+export type ResultStatus = AvailabilityStatus | "pending";
+
 export interface DomainResult {
   domain: string;
   name: string;
   extension: string;
   available: boolean;
+  status: ResultStatus;
   prices: RegistrarPrice[];
   bestPrice: number | null;
   /** Word engine only: how the name was built (blend, affix, …). */
   technique?: string;
+  /** When availability / prices were last checked (saved searches). */
+  checkedAt?: string;
+  pricedAt?: string;
 }
-
-export type AvailabilityStatus = "available" | "taken" | "unknown" | "unsupported";
 
 export interface RegistrarPrice {
   registrar: string;

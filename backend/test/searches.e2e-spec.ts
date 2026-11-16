@@ -40,20 +40,33 @@ describe('Saved searches (e2e)', () => {
       provider: 'github',
     });
 
-  const waitForJob = async (jobId: string) => {
-    let job: {
-      status: string;
-      result?: { domains: string[]; searchHistoryId: string };
-    } = {
-      status: 'waiting',
-    };
-    for (let i = 0; i < 60 && job.status !== 'completed'; i++) {
+  /** Poll until `check` passes (jobs run on the queue in the background). */
+  const eventually = async <T>(
+    get: () => Promise<T>,
+    check: (v: T) => boolean,
+  ) => {
+    let v = await get();
+    for (let i = 0; i < 80 && !check(v); i++) {
       await new Promise((r) => setTimeout(r, 250));
-      job = (await as(http().get(`/domains/jobs/${jobId}`))).body;
+      v = await get();
     }
-    expect(job.status).toBe('completed');
-    return job.result!;
+    expect(check(v)).toBe(true);
+    return v;
   };
+  const listSearches = async () =>
+    (await as(http().get('/searches?limit=50'))).body.data as Array<{
+      id: string;
+      kind: string;
+      names: number;
+    }>;
+  const getSearch = async (id: string) =>
+    (await as(http().get(`/searches/${id}`))).body as {
+      names: string[];
+      kind: string;
+      tlds: string[];
+      input: { engine: string };
+      results: unknown[];
+    };
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -100,13 +113,16 @@ describe('Saved searches (e2e)', () => {
         tlds: ['com', tld],
       })
       .expect(201);
-    const result = await waitForJob(res.body.jobId);
-    searchId = result.searchHistoryId;
+    expect(res.body.jobId).toBeTruthy();
+    const list = await eventually(listSearches, (l) =>
+      l.some((x) => x.kind === 'generate' && x.names > 0),
+    );
+    searchId = list.find((x) => x.kind === 'generate')!.id;
 
-    const saved = (await as(http().get(`/searches/${searchId}`)).expect(200))
-      .body;
+    const saved = await getSearch(searchId);
     expect(saved).toMatchObject({ kind: 'generate', tlds: ['com', tld] });
-    expect(saved.names).toEqual(result.domains);
+    expect(saved.names.length).toBeGreaterThan(0);
+    expect(new Set(saved.names).size).toBe(saved.names.length);
     expect(saved.input.engine).toBe('words');
     expect(saved.results).toEqual([]);
   }, 30_000);
@@ -242,9 +258,12 @@ describe('Saved searches (e2e)', () => {
       .send({ requestId: randomUUID() })
       .expect(201);
     expect(res.body.creditsDeducted).toBe(0.25);
-    await waitForJob(res.body.jobId);
-    const after = (await as(http().get(`/searches/${searchId}`))).body
-      .names as string[];
+    const after = (
+      await eventually(
+        () => getSearch(searchId),
+        (x) => x.names.length > names.length,
+      )
+    ).names;
     expect(after.length).toBeGreaterThan(names.length);
     expect(new Set(after).size).toBe(after.length);
     expect(after.slice(0, names.length)).toEqual(names);

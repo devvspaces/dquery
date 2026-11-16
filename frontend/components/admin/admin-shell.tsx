@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "@/components/logo";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
-import { Toaster } from "@/components/ui/sonner";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -75,7 +74,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-8">{children}</main>
-      <Toaster richColors position="bottom-right" />
     </div>
   );
 }

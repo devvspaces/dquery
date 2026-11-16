@@ -3,6 +3,8 @@ export interface CreditPricing {
   perAiGeneration: number;
   perWordGeneration: number;
   perDomainCheck: number;
+  /** Saved searches: re-read one domain's prices from the catalog. */
+  perPriceRefresh?: number;
 }
 
 /** Sign-up promo as served by GET /api/credits/promo. */
@@ -34,6 +36,11 @@ export function estimateChecks(pricing: CreditPricing, domains: number): number 
 }
 
 /** "3.25" / "1" / "0.4": at most two decimals, no trailing zeros. */
+/** Re-pricing saved domains from the daily catalog (no live checks). */
+export function estimatePriceRefresh(pricing: CreditPricing, domains: number): number {
+  return round2(domains * (pricing.perPriceRefresh ?? 0.01));
+}
+
 export function formatCredits(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "0";
   return String(round2(n));

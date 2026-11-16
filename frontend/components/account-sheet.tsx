@@ -1,5 +1,7 @@
 "use client";
 
+import { HistoryList } from "@/components/history-panel";
+
 import { formatCredits } from "@/lib/pricing";
 
 import React, { useState } from "react";
@@ -20,11 +22,13 @@ interface AccountSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onBuyCredits: () => void;
+  /** Open a saved search in the workspace. */
+  onOpenSearch?: (id: string) => void;
 }
 
 type AccountTab = "bookmarks" | "searches" | "purchases";
 
-export function AccountSheet({ open, onOpenChange, onBuyCredits }: AccountSheetProps) {
+export function AccountSheet({ open, onOpenChange, onBuyCredits, onOpenSearch }: AccountSheetProps) {
   const {
     user,
     logout,
@@ -266,54 +270,13 @@ export function AccountSheet({ open, onOpenChange, onBuyCredits }: AccountSheetP
 
           {activeTab === "searches" && (
             <div className="p-4">
-              {savedSearches.length === 0 ? (
-                <EmptyTab
-                  icon={
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  }
-                  title="No saved searches"
-                  description="Your search history will appear here."
-                />
-              ) : (
-                <div className="space-y-1.5">
-                  {savedSearches.map((s) => {
-                    let tldsList: string[] = [];
-                    try {
-                      tldsList = JSON.parse(s.tlds);
-                    } catch (_) {}
-
-                    return (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 transition-all hover:bg-muted/30 group"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-md shrink-0 bg-primary/10 text-primary">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                            </svg>
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{s.businessName}</p>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="text-[10px] text-muted-foreground">{s.resultsCount} suggestions</span>
-                              {tldsList.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  TLDs: {tldsList.join(", ")}
-                                </span>
-                              )}
-                              <span className="text-[10px] text-muted-foreground">{formatDate(s.createdAt)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <HistoryList
+                searchable={false}
+                onOpen={(id) => {
+                  onOpenChange(false);
+                  onOpenSearch?.(id);
+                }}
+              />
             </div>
           )}
 

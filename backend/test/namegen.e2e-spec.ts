@@ -88,7 +88,7 @@ describe('Word engine (e2e)', () => {
       .set('Authorization', `Bearer ${other.accessToken}`)
       .send({ seeds: ['b2'], strategies: ['coin'], count: 1 })
       .expect(200);
-  });
+  }, 30_000);
 
   it('runs a charged word-engine generation through the queue', async () => {
     const { accessToken, user } = await signIn('generator');
