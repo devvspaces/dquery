@@ -6,7 +6,8 @@ import { CostNote } from "@/components/cost-note";
 import { TldSelector } from "@/components/tld-selector";
 import { TECHNIQUE_INFO } from "@/components/word-builder";
 import { estimateChecks } from "@/lib/pricing";
-import { MAX_CHECKS, MAX_TLDS, type DomainPair } from "@/lib/search-defaults";
+import { MAX_CHECKS, type DomainPair } from "@/lib/search-defaults";
+import { useMaxTlds } from "@/lib/tld-index";
 import type { Technique } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,8 @@ export function NameReview({ review, isLoading, onCheck, onBack, backLabel = "Ba
     () => chosen.flatMap((domain) => tlds.map((t) => ({ domain, tld: t.replace(/^\./, "") }))),
     [chosen, tlds]
   );
-  const tooMany = pairs.length > MAX_CHECKS || tlds.length > MAX_TLDS;
+  const maxTlds = useMaxTlds();
+  const tooMany = pairs.length > MAX_CHECKS || tlds.length > maxTlds;
 
   const toggle = (name: string) =>
     setSelected((prev) => {
@@ -183,7 +185,7 @@ export function NameReview({ review, isLoading, onCheck, onBack, backLabel = "Ba
         </div>
         {tooMany ? (
           <p className="text-center text-xs text-destructive">
-            Too many checks at once (max {MAX_TLDS} extensions and {MAX_CHECKS} domains). Deselect some.
+            Too many checks at once (max {maxTlds} extensions and {MAX_CHECKS} domains). Deselect some.
           </p>
         ) : (
           pairs.length > 0 && <CostNote cost={(p) => estimateChecks(p, pairs.length)} detail={`${pairs.length} domains`} />

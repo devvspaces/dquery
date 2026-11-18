@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { renderWithClient } from "@/lib/test-utils";
 import { useState } from "react";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 import { WordBuilder, DEFAULT_WORD_CONFIG } from "./word-builder";
@@ -93,7 +94,7 @@ describe("GeneratorForm word builder mode", () => {
 
   it("prices and submits a word-engine search", () => {
     const onGenerate = vi.fn();
-    render(<GeneratorForm onGenerate={onGenerate} isLoading={false} />);
+    renderWithClient(<GeneratorForm onGenerate={onGenerate} isLoading={false} />);
     fireEvent.click(screen.getByRole("tab", { name: "Word builder" }));
     // Only the generation fee up front; checks are priced at the review step.
     expect(screen.getByTestId("cost-note").textContent).toContain("0.25 credits");

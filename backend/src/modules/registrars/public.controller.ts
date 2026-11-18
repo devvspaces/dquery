@@ -46,6 +46,17 @@ export class PublicController {
     return this.registrars.publicCatalog();
   }
 
+  /** Compact list of every priced extension, for the search page's picker. */
+  @Get('public/tld-index')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Header(
+    'Cache-Control',
+    'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400',
+  )
+  tldIndex() {
+    return this.registrars.tldIndex();
+  }
+
   @Get('public/tlds/:tld')
   @Throttle({ default: { limit: 600, ttl: 60_000 } })
   @Header(

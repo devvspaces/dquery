@@ -9,6 +9,8 @@ export interface CreditPricing {
   perDomainCheck: number;
   /** Saved searches: re-read prices for one domain from the catalog. */
   perPriceRefresh: number;
+  /** Most extensions one search may use (not a price, but the UI needs it with them). */
+  maxTlds: number;
 }
 
 export interface CreditQuote {
@@ -36,7 +38,12 @@ export class CreditPricingService {
       perWordGeneration: this.settings.get<number>('credits.perWordGeneration'),
       perDomainCheck: this.settings.get<number>('credits.perDomainCheck'),
       perPriceRefresh: this.settings.get<number>('credits.perPriceRefresh'),
+      maxTlds: this.maxTlds(),
     };
+  }
+
+  maxTlds(): number {
+    return Math.max(1, Math.floor(this.settings.get<number>('search.maxTlds')));
   }
 
   /** Cost of a generation run plus checking `names × tlds` domains. */

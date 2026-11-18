@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { TldSelector, DEFAULT_SELECTED } from "@/components/tld-selector";
 import { CostNote } from "@/components/cost-note";
 import { estimateGeneration } from "@/lib/pricing";
-import { GENERATION_COUNT, MAX_TLDS } from "@/lib/search-defaults";
+import { GENERATION_COUNT } from "@/lib/search-defaults";
+import { useMaxTlds } from "@/lib/tld-index";
 import { WordBuilder, DEFAULT_WORD_CONFIG } from "@/components/word-builder";
 import { cn } from "@/lib/utils";
 import type { GenerateRequest, WordEngineConfig } from "@/lib/types";
@@ -34,7 +35,8 @@ export function GeneratorForm({ onGenerate, isLoading, initialDescription = "" }
     );
   };
 
-  const tooManyTlds = selectedTlds.length > MAX_TLDS;
+  const maxTlds = useMaxTlds();
+  const tooManyTlds = selectedTlds.length > maxTlds;
   const wordsReady =
     (wordConfig.strategies?.length ?? 0) > 0 &&
     (wordConfig.seeds.length > 0 ||
@@ -168,7 +170,7 @@ export function GeneratorForm({ onGenerate, isLoading, initialDescription = "" }
       </Button>
       {tooManyTlds ? (
         <p className="text-center text-xs text-destructive">
-          Pick at most {MAX_TLDS} extensions.
+          Pick at most {maxTlds} extensions.
         </p>
       ) : (
         <CostNote

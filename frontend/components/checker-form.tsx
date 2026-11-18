@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { CostNote } from "@/components/cost-note";
 import { TldSelector, DEFAULT_SELECTED } from "@/components/tld-selector";
 import { estimateChecks } from "@/lib/pricing";
-import { buildCheckPairs, MAX_TLDS } from "@/lib/search-defaults";
+import { buildCheckPairs } from "@/lib/search-defaults";
+import { useMaxTlds, useTldIndex } from "@/lib/tld-index";
 
 interface CheckerFormProps {
   /** The typed name or domain plus the extensions to check it across. */
@@ -20,9 +21,20 @@ export function CheckerForm({ onCheck, isLoading, initialDomain = "" }: CheckerF
   const [domain, setDomain] = useState(initialDomain);
   const [selectedTlds, setSelectedTlds] = useState<string[]>(DEFAULT_SELECTED);
 
+  const maxTlds = useMaxTlds();
+  const { entries, loaded } = useTldIndex();
   const pairs = buildCheckPairs(domain, selectedTlds);
-  const tooManyTlds = selectedTlds.length > MAX_TLDS;
+  // A typed extension ("acme.xyz") is checked too, so count distinct extensions.
+  const tooManyTlds = new Set(pairs.map((p) => p.tld)).size > maxTlds;
   const isValid = pairs.length > 0 && !tooManyTlds;
+  const typedTld = pairs[0] && domain.includes(".") ? pairs[0].tld : null;
+  const typedEntry = typedTld ? entries.find((e) => e.tld === typedTld) : undefined;
+  const typedNote =
+    typedTld && loaded && (!typedEntry || !typedEntry.checkable)
+      ? typedEntry
+        ? `We have prices for .${typedTld} but can't check its availability yet.`
+        : `We don't have .${typedTld} in our price list yet, so it may come back as unsupported.`
+      : null;
 
   const handleToggleTld = (tld: string) =>
     setSelectedTlds((prev) => (prev.includes(tld) ? prev.filter((t) => t !== tld) : [...prev, tld]));
@@ -52,6 +64,7 @@ export function CheckerForm({ onCheck, isLoading, initialDomain = "" }: CheckerF
           Type a name (e.g. mybusiness) or a full domain (e.g. mybusiness.com). We check it across the
           extensions you pick below; a typed extension is always included.
         </p>
+        {typedNote && <p className="text-xs text-warning">{typedNote}</p>}
       </div>
 
       <TldSelector selected={selectedTlds} onToggle={handleToggleTld} />
@@ -73,7 +86,7 @@ export function CheckerForm({ onCheck, isLoading, initialDomain = "" }: CheckerF
         )}
       </Button>
       {tooManyTlds ? (
-        <p className="text-center text-xs text-destructive">Pick at most {MAX_TLDS} extensions.</p>
+        <p className="text-center text-xs text-destructive">Pick at most {maxTlds} extensions (your typed one counts too).</p>
       ) : (
         pairs.length > 0 && (
           <CostNote

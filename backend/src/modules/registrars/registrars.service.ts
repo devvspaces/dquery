@@ -1,5 +1,6 @@
 import {
   toPublicCatalog,
+  toTldIndex,
   toPublicDetail,
   type PublicCatalog,
   type PublicTldDetail,
@@ -350,6 +351,36 @@ export class RegistrarsService {
       this.getEnabledProviderIds(),
       (id) => this.displayName(id),
     );
+  }
+
+  /**
+   * Every priced extension for the picker (cheapest price, registrar count),
+   * flagged with whether an enabled checker can check availability for it.
+   */
+  async tldIndex() {
+    const all = await this.tldPricesService.allPrices();
+    const catalog = toPublicCatalog(all, this.getEnabledProviderIds(), (id) =>
+      this.displayName(id),
+    );
+    return toTldIndex(catalog, await this.checkableTlds(all));
+  }
+
+  /** TLDs at least one enabled availability checker will accept. */
+  private async checkableTlds(
+    all: Map<string, CatalogPrice[]>,
+  ): Promise<Set<string>> {
+    const out = new Set<string>();
+    for (const checker of await this.getOrderedCheckers()) {
+      const staticList = await checker.getSupportedTlds();
+      if (staticList.length > 0) {
+        staticList.forEach((t) => out.add(t));
+        continue;
+      }
+      // Same rule as filterSupported: catalog-based checkers take what they price.
+      for (const [tld, rows] of all)
+        if (rows.some((r) => r.registrar === checker.id)) out.add(tld);
+    }
+    return out;
   }
 
   /** One TLD's prices per registrar, for its public price page. */

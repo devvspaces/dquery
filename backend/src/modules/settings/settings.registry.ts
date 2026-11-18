@@ -107,6 +107,18 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 10,
   },
   {
+    key: 'search.maxTlds',
+    group: 'Credits',
+    type: 'number',
+    label: 'Max extensions per search',
+    description:
+      'How many extensions a user can pick for one generate or check. Each extension multiplies the number of checks.',
+    envVar: 'SEARCH_MAX_TLDS',
+    envDefault: () => num('SEARCH_MAX_TLDS', 10),
+    min: 1,
+    max: 50,
+  },
+  {
     key: 'credits.freeEarly',
     group: 'Credits',
     type: 'number',

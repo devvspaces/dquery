@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { CreditsService } from '../credits/credits.service';
 import { CreditPricingService } from '../credits/credit-pricing.service';
@@ -42,6 +47,11 @@ export class DomainsService {
       dto.wordEngine?.seeds.join(' ').trim() ||
       'Invented names';
     const autoCheck = dto.autoCheck !== false;
+    const maxTlds = this.pricing.maxTlds();
+    if (new Set(dto.tlds).size > maxTlds)
+      throw new BadRequestException(
+        `Pick at most ${maxTlds} extensions per search.`,
+      );
     // Without auto-check only the generation fee is charged now; checks are
     // charged later when the user checks the names they kept.
     const quote = this.pricing.quoteGeneration(
@@ -190,6 +200,11 @@ export class DomainsService {
     userId: string,
   ): Promise<{ batchId: string; creditsDeducted: number; searchId: string }> {
     const totalCredits = this.pricing.quoteChecks(dto.domains.length).total;
+    const maxTlds = this.pricing.maxTlds();
+    if (new Set(dto.domains.map((d) => d.tld)).size > maxTlds)
+      throw new BadRequestException(
+        `Pick at most ${maxTlds} extensions per search.`,
+      );
     // Validate the search before charging (404 for someone else's).
     if (dto.searchId) await this.searches.attachCheck(userId, [], dto.searchId);
 

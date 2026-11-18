@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithClient } from "@/lib/test-utils";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 import { GeneratorForm } from "./generator-form";
 import { CheckerForm } from "./checker-form";
@@ -12,7 +13,7 @@ describe("cost notes", () => {
   });
 
   it("charges only the generation fee up front", () => {
-    render(<GeneratorForm onGenerate={() => {}} isLoading={false} />);
+    renderWithClient(<GeneratorForm onGenerate={() => {}} isLoading={false} />);
     const note = screen.getByTestId("cost-note").textContent;
     expect(note).toContain("1 credits");
     expect(note).toContain("generate 20 names");
@@ -22,12 +23,12 @@ describe("cost notes", () => {
     useDomainQStore.setState({
       user: { id: "u", name: "A", email: "a@x", credits: 0.5 } as never,
     });
-    render(<GeneratorForm onGenerate={() => {}} isLoading={false} />);
+    renderWithClient(<GeneratorForm onGenerate={() => {}} isLoading={false} />);
     expect(screen.getByTestId("cost-note").textContent).toContain("you have 0.5");
   });
 
   it("prices a name across the selected extensions", () => {
-    render(<CheckerForm onCheck={() => {}} isLoading={false} />);
+    renderWithClient(<CheckerForm onCheck={() => {}} isLoading={false} />);
     // Default selection: 6 extensions → 6 × 0.05
     fireEvent.change(screen.getByLabelText("Domain name"), { target: { value: "acme" } });
     expect(screen.getByTestId("cost-note").textContent).toContain("0.3 credits");
@@ -42,7 +43,7 @@ describe("nothing submits until the main button is clicked", () => {
 
   it("selecting extensions, sorting or pressing Enter in TLD search never generates", () => {
     const onGenerate = vi.fn();
-    const { container } = render(<GeneratorForm onGenerate={onGenerate} isLoading={false} />);
+    const { container } = renderWithClient(<GeneratorForm onGenerate={onGenerate} isLoading={false} />);
     fireEvent.change(screen.getByLabelText("Business name"), { target: { value: "Acme" } });
     // Click controls inside the extension picker: two chips plus every non-chip button.
     const buttons = [...container.querySelectorAll("button")].filter(
@@ -62,14 +63,14 @@ describe("nothing submits until the main button is clicked", () => {
   });
 
   it("every button in the extension picker is type=button", () => {
-    const { container } = render(<CheckerForm onCheck={() => {}} isLoading={false} />);
+    const { container } = renderWithClient(<CheckerForm onCheck={() => {}} isLoading={false} />);
     const untyped = [...container.querySelectorAll("button")].filter((b) => !b.getAttribute("type"));
     expect(untyped).toHaveLength(0);
   });
 
   it("the checker passes the chosen extensions", () => {
     const onCheck = vi.fn();
-    render(<CheckerForm onCheck={onCheck} isLoading={false} />);
+    renderWithClient(<CheckerForm onCheck={onCheck} isLoading={false} />);
     fireEvent.change(screen.getByLabelText("Domain name"), { target: { value: "acme.com" } });
     fireEvent.click(screen.getByRole("button", { name: /check \d+ domains/i }));
     expect(onCheck).toHaveBeenCalledWith("acme.com", expect.arrayContaining([".com", ".io"]));

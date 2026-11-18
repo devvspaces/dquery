@@ -62,7 +62,8 @@ export class GenerateDomainsDto {
 
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(10)
+  // Hard ceiling; the configurable limit (search.maxTlds) is checked in the service.
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   @MaxLength(24, { each: true })
   tlds: string[];

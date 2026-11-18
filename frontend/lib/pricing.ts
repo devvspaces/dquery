@@ -5,6 +5,8 @@ export interface CreditPricing {
   perDomainCheck: number;
   /** Saved searches: re-read one domain's prices from the catalog. */
   perPriceRefresh?: number;
+  /** Most extensions one search may use (server setting search.maxTlds). */
+  maxTlds?: number;
 }
 
 /** Sign-up promo as served by GET /api/credits/promo. */

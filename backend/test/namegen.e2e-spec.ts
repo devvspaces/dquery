@@ -44,7 +44,7 @@ describe('Word engine (e2e)', () => {
   afterAll(async () => {
     await db.delete(users).where(like(users.email, `${tag}%`));
     await app?.close();
-  });
+  }, 30_000);
 
   it('previews names for the signed-in user', async () => {
     const { accessToken } = await signIn('preview');
@@ -179,6 +179,18 @@ describe('Word engine (e2e)', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ domains })
       .expect(400);
+  });
+
+  it('caps extensions per search at search.maxTlds', async () => {
+    const { accessToken } = await signIn('maxtlds');
+    const max = app.get(CreditPricingService).maxTlds();
+    const tlds = Array.from({ length: max + 1 }, (_, i) => `t${i}x`);
+    const res = await request(app.getHttpServer())
+      .post('/domains/check/bulk')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ domains: tlds.map((tld) => ({ domain: 'acme', tld })) })
+      .expect(400);
+    expect(JSON.stringify(res.body)).toContain(`at most ${max} extensions`);
   });
 
   it('still requires businessName for AI generation', async () => {

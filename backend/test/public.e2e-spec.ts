@@ -67,6 +67,15 @@ describe('Public prices and buy links (e2e)', () => {
     });
   });
 
+  it('lists every priced extension in the picker index', async () => {
+    const res = await http().get('/public/tld-index').expect(200);
+    expect(res.headers['cache-control']).toContain('max-age');
+    const row = res.body.tlds.find((t: { tld: string }) => t.tld === tld);
+    expect(row).toMatchObject({ from: 9, registrars: 2, category: 'Other' });
+    expect(typeof row.checkable).toBe('boolean');
+    expect(res.body.count).toBe(res.body.tlds.length);
+  });
+
   it('lists the TLD in the catalog with its spread', async () => {
     const res = await http().get('/public/tlds').expect(200);
     const row = res.body.tlds.find((t: { tld: string }) => t.tld === tld);

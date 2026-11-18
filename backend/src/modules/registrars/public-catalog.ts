@@ -1,5 +1,10 @@
 import type { CatalogPrice } from './tld-prices.service';
 import { multiYearTotal, roundMoney } from './utils/domain.util';
+import {
+  categorizeTld,
+  POPULAR_ORDER,
+  type TldCategory,
+} from './tld-categories';
 
 /**
  * Pure shaping of the price catalog for the public (SEO) price pages.
@@ -115,6 +120,50 @@ export function toPublicCatalog(
   );
   return {
     stats: { prices, tlds: tlds.length, registrars: registrars.size },
+    tlds,
+  };
+}
+
+/** One extension in the picker: cheapest first-year price and how many registrars price it. */
+export interface TldIndexEntry {
+  tld: string;
+  from: number;
+  registrars: number;
+  category: TldCategory;
+  /** We can check availability live (otherwise prices only). */
+  checkable: boolean;
+}
+
+/** Every priced extension, popular ones first, then most-compared, then A–Z. */
+export function toTldIndex(
+  catalog: PublicCatalog,
+  checkable: Set<string>,
+): {
+  count: number;
+  checkable: number;
+  tlds: TldIndexEntry[];
+} {
+  const rank = (t: string) => {
+    const i = POPULAR_ORDER.indexOf(t);
+    return i === -1 ? POPULAR_ORDER.length : i;
+  };
+  const tlds = catalog.tlds
+    .map((t) => ({
+      tld: t.tld,
+      from: t.cheapestRegister,
+      registrars: t.registrars,
+      category: categorizeTld(t.tld),
+      checkable: checkable.has(t.tld),
+    }))
+    .sort(
+      (a, b) =>
+        rank(a.tld) - rank(b.tld) ||
+        b.registrars - a.registrars ||
+        a.tld.localeCompare(b.tld),
+    );
+  return {
+    count: tlds.length,
+    checkable: tlds.filter((t) => t.checkable).length,
     tlds,
   };
 }

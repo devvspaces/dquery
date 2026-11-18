@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithClient } from "@/lib/test-utils";
 import { useDomainQStore } from "@/lib/store/use-domainq-store";
 import { NameReview } from "./name-review";
 
@@ -19,7 +20,7 @@ describe("NameReview", () => {
 
   it("checks only the kept names across the extensions", () => {
     const onCheck = vi.fn();
-    render(<NameReview review={review} isLoading={false} onCheck={onCheck} onBack={() => {}} />);
+    renderWithClient(<NameReview review={review} isLoading={false} onCheck={onCheck} onBack={() => {}} />);
     expect(screen.getByText("3 of 3 selected. Only the names you check are charged.")).toBeInTheDocument();
     // 3 × 2 × 0.05
     expect(screen.getByTestId("cost-note").textContent).toContain("0.3 credits");
@@ -40,7 +41,7 @@ describe("NameReview", () => {
 
   it("adds your own name, selected", () => {
     const onCheck = vi.fn();
-    render(<NameReview review={review} isLoading={false} onCheck={onCheck} onBack={() => {}} />);
+    renderWithClient(<NameReview review={review} isLoading={false} onCheck={onCheck} onBack={() => {}} />);
     fireEvent.click(screen.getByText("Select none"));
     fireEvent.change(screen.getByLabelText("Add your own name"), { target: { value: "MyBrand.com" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -52,7 +53,7 @@ describe("NameReview", () => {
   });
 
   it("disables checking when nothing is selected", () => {
-    render(<NameReview review={review} isLoading={false} onCheck={() => {}} onBack={() => {}} />);
+    renderWithClient(<NameReview review={review} isLoading={false} onCheck={() => {}} onBack={() => {}} />);
     fireEvent.click(screen.getByText("Select none"));
     expect(screen.getByRole("button", { name: /check 0 names/i })).toBeDisabled();
   });
