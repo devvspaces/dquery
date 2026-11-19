@@ -46,6 +46,11 @@ export interface DomainAvailability {
   /** When `price` was converted to USD: the registrar's own currency and price. */
   originalCurrency?: string;
   originalPrice?: number;
+  /**
+   * "registry" when availability came only from the public registry lookup
+   * (RDAP), not a registrar: premium or reserved names may still be refused.
+   */
+  availabilitySource?: 'registry';
   /** Where to buy this domain at this registrar (may carry an affiliate ID). */
   purchaseUrl?: string;
   checkedAt: Date;

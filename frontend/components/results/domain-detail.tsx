@@ -97,6 +97,15 @@ export function DomainDetail({
             </SheetHeader>
 
             <div className="flex-1 overflow-y-auto p-5">
+              {row.viaRegistry && row.status !== "pending" && (
+                <p
+                  className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+                  data-testid="registry-note"
+                >
+                  Availability from the registry&apos;s public lookup, as no registrar could check this extension live.
+                  Premium or reserved names can still be refused at checkout.
+                </p>
+              )}
               {offers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {row.status === "pending" ? "Prices appear here as registrars answer." : "No registrar prices for this domain."}

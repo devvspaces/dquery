@@ -13,6 +13,8 @@ export interface BackendOffer {
   originalCurrency?: string;
   originalPrice?: number;
   purchaseUrl?: string;
+  /** "registry": availability came from the public RDAP lookup, not a registrar. */
+  availabilitySource?: "registry";
 }
 
 /** One domain's entry in a checking job result (live stream or saved search). */
@@ -84,6 +86,7 @@ export function checkedRow(item: BackendCheckItem, technique?: string): DomainRe
     technique,
     checkedAt: item.checkedAt,
     pricedAt: item.pricedAt,
+    viaRegistry: item.results.some((r) => r.availabilitySource === "registry") || undefined,
   };
 }
 

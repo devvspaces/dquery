@@ -83,6 +83,21 @@ describe("results workspace", () => {
     expect(within(dialog).getByRole("link", { name: "Buy at Reg" })).toBeTruthy();
   });
 
+  it("says when availability came from the registry lookup", () => {
+    const reg = item("brewly", "pl", 5);
+    reg.results = reg.results.map((r) => ({ ...r, availabilitySource: "registry" as const }));
+    const withRegistry = [checkedRow(reg), ...rows];
+    render(<ResultsWorkspace meta={meta} rows={withRegistry} progress={{ running: false, message: null, done: 0, total: 0 }} {...handlers()} />);
+    fireEvent.click(screen.getByRole("button", { name: /brewly\.pl: \$5\.00/ }));
+    expect(within(screen.getByRole("dialog")).getByTestId("registry-note").textContent).toContain("public lookup");
+  });
+
+  it("has no registry note for registrar answers", () => {
+    render(<ResultsWorkspace meta={meta} rows={rows} progress={{ running: false, message: null, done: 0, total: 0 }} {...handlers()} />);
+    fireEvent.click(screen.getByRole("button", { name: /brewly\.io: \$28\.00/ }));
+    expect(within(screen.getByRole("dialog")).queryByTestId("registry-note")).toBeNull();
+  });
+
   it("confirms a price refresh with the cost for available domains only", () => {
     const h = handlers();
     render(<ResultsWorkspace meta={meta} rows={rows} progress={{ running: false, message: null, done: 0, total: 0 }} {...h} />);

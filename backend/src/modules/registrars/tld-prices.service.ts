@@ -1,4 +1,5 @@
 import { FxRatesService } from './fx-rates.service';
+import { RdapService, topLabel } from './rdap.service';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service';
@@ -113,6 +114,7 @@ export class TldPricesService {
     @Inject(REGISTRAR_PROVIDERS)
     private readonly providers: IRegistrarProvider[],
     private readonly fx: FxRatesService,
+    private readonly rdap: RdapService,
   ) {}
 
   /** Sync every price-catalog provider. One provider failing doesn't stop the others. */
@@ -125,6 +127,8 @@ export class TldPricesService {
     if (sources.length === 0) return [];
     // Fresh exchange rates first, so newly synced non-USD prices convert correctly.
     await this.fx.sync();
+    // Only TLDs in the real (IANA) root zone; null when the list can't load.
+    const rootZone = await this.rdap.rootZoneTlds();
 
     const reports: SyncReport[] = [];
     for (const source of sources) {
@@ -132,7 +136,19 @@ export class TldPricesService {
       let report: SyncReport;
       try {
         const fetched = await source.fetchTldPrices();
-        const quotes = fetched.filter(isPlausibleQuote);
+        const offRoot = rootZone
+          ? fetched.filter((q) => !rootZone.has(topLabel(q.tld)))
+          : [];
+        if (offRoot.length > 0)
+          this.logger.warn(
+            `${source.getProviderName()}: skipped ${offRoot.length} TLD(s) outside the internet root zone (e.g. ${offRoot
+              .slice(0, 5)
+              .map((q) => `.${q.tld}`)
+              .join(', ')})`,
+          );
+        const quotes = fetched
+          .filter((q) => !rootZone || rootZone.has(topLabel(q.tld)))
+          .filter(isPlausibleQuote);
         if (quotes.length < fetched.length) {
           const bad = fetched.filter((q) => !isPlausibleQuote(q));
           this.logger.warn(
@@ -159,8 +175,25 @@ export class TldPricesService {
       await this.recordRun(report, startedAt);
     }
 
+    if (rootZone) await this.removeOffRootPrices(rootZone);
     await this.bumpCacheVersion();
     return reports;
+  }
+
+  /** Delete stored prices for TLDs that aren't on the normal internet (e.g. Handshake). */
+  async removeOffRootPrices(rootZone: Set<string>): Promise<number> {
+    const db = this.databaseService.getDb();
+    const rows = await db
+      .selectDistinct({ tld: tldPrices.tld })
+      .from(tldPrices);
+    const bad = rows
+      .map((r) => r.tld)
+      .filter((tld) => !rootZone.has(topLabel(tld)));
+    for (const batch of chunk(bad, 500))
+      await db.delete(tldPrices).where(inArray(tldPrices.tld, batch));
+    if (bad.length)
+      this.logger.log(`Removed prices for ${bad.length} off-root TLD(s)`);
+    return bad.length;
   }
 
   /** Upsert in batches. Rows set by hand (`source = manual`) are never overwritten. */

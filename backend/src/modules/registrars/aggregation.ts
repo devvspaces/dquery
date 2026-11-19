@@ -27,6 +27,9 @@ export function resolveStatus(
   return 'unknown';
 }
 
+/** Live-result key for the RDAP registry lookup (not a registrar, never an offer). */
+export const REGISTRY_ID = 'rdap';
+
 export interface BuildOffersInput {
   domain: string;
   tld: string;
@@ -60,6 +63,11 @@ export function buildOffers(input: BuildOffersInput): DomainAvailability[] {
   const liveResults = [...live.values()];
   const status = resolveStatus(liveResults);
   const premium = liveResults.some((r) => r.premium === true);
+  const definite = [...live].filter(
+    ([, r]) => r.status === 'available' || r.status === 'taken',
+  );
+  const viaRegistry =
+    definite.length > 0 && definite.every(([id]) => id === REGISTRY_ID);
 
   const catalogByRegistrar = new Map(catalog.map((c) => [c.registrar, c]));
   const registrars = new Set<string>();
@@ -82,6 +90,7 @@ export function buildOffers(input: BuildOffersInput): DomainAvailability[] {
       registrar: displayName(registrarId),
       premiumDomain: premium,
       checkedAt,
+      ...(viaRegistry && { availabilitySource: 'registry' as const }),
     };
 
     if (status !== 'available') {

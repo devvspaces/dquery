@@ -18,6 +18,7 @@ import { DynadotProvider } from './providers/dynadot.provider';
 import { HostingerProvider } from './providers/hostinger.provider';
 import { WhmcsFeedProvider } from './providers/whmcs-feed.provider';
 import { TldPricesService } from './tld-prices.service';
+import { RdapService } from './rdap.service';
 import { FxRatesService } from './fx-rates.service';
 import { RegistrarsCommand } from './registrars.command';
 import { REGISTRAR_PROVIDERS } from './interfaces/registrar-provider.interface';
@@ -56,6 +57,7 @@ const PROVIDER_CLASSES = [
     },
     RegistrarsService,
     TldPricesService,
+    RdapService,
     FxRatesService,
     RegistrarsCommand,
   ],

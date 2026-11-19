@@ -77,6 +77,8 @@ export class CheckDomainResponseDto {
   priceSource?: PriceSource;
   stale?: boolean;
   reason?: string;
+  /** "registry": availability from the public RDAP lookup, not a registrar. */
+  availabilitySource?: 'registry';
   error?: string;
   checkedAt: Date;
 }

@@ -227,6 +227,21 @@ export const SETTINGS: readonly SettingDef[] = [
     envDefault: () => process.env.OVH_SUBSIDIARY || 'IE',
     options: ['IE', 'GB', 'FR', 'DE', 'ES', 'IT', 'NL', 'PL', 'PT'],
   },
+  {
+    key: 'registrars.rdapFallback',
+    group: 'Registrars',
+    type: 'enum',
+    label: 'Registry lookup (RDAP) fallback',
+    description:
+      "For extensions no registrar can check, ask the registry's public RDAP service whether the name is registered. Free, no keys. Also drops price-feed TLDs that aren't on the normal internet (e.g. Handshake names).",
+    envVar: 'RDAP_FALLBACK',
+    envDefault: () =>
+      (
+        process.env.RDAP_FALLBACK ||
+        (process.env.NODE_ENV === 'test' ? 'off' : 'on')
+      ).toLowerCase(),
+    options: ['on', 'off'],
+  },
   // --- Prices ---------------------------------------------------------------
   {
     key: 'prices.syncCron',

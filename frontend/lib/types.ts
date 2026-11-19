@@ -16,6 +16,8 @@ export interface DomainResult {
   /** When availability / prices were last checked (saved searches). */
   checkedAt?: string;
   pricedAt?: string;
+  /** Availability came from the registry's public lookup (RDAP), not a registrar. */
+  viaRegistry?: boolean;
 }
 
 export interface RegistrarPrice {

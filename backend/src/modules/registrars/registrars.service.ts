@@ -24,7 +24,13 @@ import type {
 import { TldPricesService } from './tld-prices.service';
 import { SettingsService } from '../settings/settings.service';
 import type { CatalogPrice } from './tld-prices.service';
-import { buildOffers, pickBestOffer, resolveStatus } from './aggregation';
+import {
+  buildOffers,
+  pickBestOffer,
+  REGISTRY_ID,
+  resolveStatus,
+} from './aggregation';
+import { RdapService, topLabel } from './rdap.service';
 import {
   chunk,
   errorMessage,
@@ -71,6 +77,7 @@ export class RegistrarsService {
     private readonly tldPricesService: TldPricesService,
     @Inject(REGISTRAR_PROVIDERS) providers: IRegistrarProvider[],
     private readonly settings: SettingsService,
+    private readonly rdap: RdapService,
   ) {
     this.providersById = new Map(providers.map((p) => [p.id, p]));
   }
@@ -152,6 +159,31 @@ export class RegistrarsService {
       pending = pending.filter((d) => !resolved.has(`${d.domain}.${d.tld}`));
     }
 
+    // 2b. Last resort: the registry's public RDAP lookup, for TLDs no
+    // registrar could answer. Decides availability only (no offer of its own).
+    if (pending.length > 0 && this.rdap.enabled()) {
+      const rdapTlds = await this.rdap.supportedTlds();
+      const viaRdap = pending.filter((d) => rdapTlds.has(topLabel(d.tld)));
+      if (viaRdap.length > 0) {
+        const started = Date.now();
+        const checked = await this.rdap.check(viaRdap);
+        const perDomain = Math.round(
+          (Date.now() - started) / Math.max(1, viaRdap.length),
+        );
+        for (const r of checked) {
+          record(REGISTRY_ID, r);
+          logs.push({
+            registrar: 'RDAP',
+            domain: `${r.domain}.${r.tld}`,
+            success: r.status !== 'unknown',
+            responseTime: perDomain,
+            errorMessage: r.error?.slice(0, 500),
+            createdAt: new Date(),
+          });
+        }
+      }
+    }
+
     // 3. Live prices for available names
     const available = misses.filter((d) => {
       const fqdn = `${d.domain}.${d.tld}`;
@@ -214,6 +246,11 @@ export class RegistrarsService {
               status,
               available: status === 'available',
               registrar: 'None',
+              ...(status !== 'unknown' &&
+                status !== 'unsupported' &&
+                liveForDomain.has(REGISTRY_ID) && {
+                  availabilitySource: 'registry' as const,
+                }),
               error:
                 [...liveForDomain.values()].find((r) => r.error)?.error ??
                 'No enabled registrar supports this TLD',
@@ -380,6 +417,11 @@ export class RegistrarsService {
       for (const [tld, rows] of all)
         if (rows.some((r) => r.registrar === checker.id)) out.add(tld);
     }
+    // The registry lookup covers what it has an RDAP server for.
+    const rdapTlds = await this.rdap.supportedTlds();
+    if (rdapTlds.size > 0)
+      for (const tld of all.keys())
+        if (rdapTlds.has(topLabel(tld))) out.add(tld);
     return out;
   }
 
