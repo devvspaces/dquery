@@ -61,10 +61,7 @@ describe('RdapService', () => {
   } as unknown as RedisService;
 
   const make = (on = 'on') =>
-    new RdapService(
-      redis,
-      settingsStub({ 'registrars.rdapFallback': on }),
-    ) as RdapService & { http: { get: jest.Mock } };
+    new RdapService(redis, settingsStub({ 'registrars.rdapFallback': on }));
 
   afterEach(() => jest.restoreAllMocks());
 
